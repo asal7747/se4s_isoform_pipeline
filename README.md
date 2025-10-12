@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 # se4s_isoform_pipeline
 
@@ -46,3 +47,7 @@ A reproducible Python pipeline to bridge short‑read single‑cell RNA‑seq wi
 
 ## License
 Project license is included in `LICENSE` and covers the pipeline code and repository assets; external inputs remain under their respective source licenses and data use policies.
+=======
+# se4s_isoform_pipeline
+Reproducible Python pipeline bridging short‑read single‑cell RNA‑seq and long‑read isoform resolution in C2C12 muscle cells, with QC, clustering, isoform‑aware proxies, and benchmarks to guide when long reads are needed.
+>>>>>>> origin/main
