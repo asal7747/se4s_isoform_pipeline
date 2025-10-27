@@ -1,0 +1,15 @@
+[project]
+name = "se4s-isoform"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = ["pandas","click"]
+
+[project.scripts]
+se4s = "se4s_isoform.cli:cli"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-q"

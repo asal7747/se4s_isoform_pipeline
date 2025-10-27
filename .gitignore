@@ -1,3 +1,9 @@
+# Ignore large output tables and other generated files
+outputs/tables/bulk_sc_talon_read_annot.tsv
+outputs/tables/*.tsv
+outputs/*.log
+outputs/*.tmp
+*.DS_Store
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -205,3 +211,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project outputs and large artifacts
+outputs/anndata/
+*.h5ad
+*.h5
+*.hdf5
