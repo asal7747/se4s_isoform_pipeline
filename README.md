@@ -107,6 +107,55 @@ isoform‑aware proxies, and a TALON-based read‑wise annotation step.
 	PY
 	```
 
+	### Short-read scRNA ingest, QC, clustering, and mapping
+
+	1) Download ENCODE h5ad files
+	```bash
+	bash scripts/download_single_cell_data.sh outputs/anndata
+	```
+
+	2) QC (requires scanpy in sc_env)
+	```bash
+	mamba activate sc_env
+	python scripts/utils.py outputs/anndata/short_shallow.h5ad outputs/anndata
+	```
+	→ `outputs/anndata/short_shallow_qc.h5ad` (≈7,465 cells × ≈19,231 genes)
+
+	3) Map TALON gene symbols to scRNA
+	```bash
+	python scripts/map_ids_by_symbol.py \
+	  outputs/tables/bulk_sc_talon_read_annot.tsv \
+	  outputs/anndata/short_shallow_qc.h5ad \
+	  outputs/tables/talon_scrna_symbol_map.csv
+	```
+	→ 15,758 gene overlaps
+
+	4) Cluster cells (Leiden)
+	```bash
+	python scripts/cluster_cells.py \
+	  outputs/anndata/short_shallow_qc.h5ad \
+	  outputs/tables/cell_clusters.csv
+	```
+	→ 6 clusters over 7,465 cells
+
+	5) Assign isoform proxies (cluster, gene → top TALON transcript)
+	```bash
+	python scripts/assign_isoform_proxies.py \
+	  outputs/tables/bulk_sc_talon_read_annot.tsv \
+	  outputs/anndata/short_shallow_qc.h5ad \
+	  outputs/tables/cell_clusters.csv \
+	  outputs/tables/talon_scrna_symbol_map.csv \
+	  outputs/tables/isoform_proxies.csv
+	```
+	→ 89,888 proxy rows
+
+	Outputs:
+	- `outputs/tables/talon_scrna_symbol_map.csv` — shared genes (15,758)  
+	- `outputs/tables/cell_clusters.csv` — cluster labels for each cell  
+	- `outputs/tables/isoform_proxies.csv` — cluster‑gene mean expression and assigned top TALON transcript
+
+	See `notebooks/scRNA_QC_EDA.ipynb` for QC, PCA, UMAP, and decisions. (See attachments above for file contents. You may not need to search or read the file again.)
+
 	## Outputs
 
 	`outputs/bulk_run_local_QC.log`
