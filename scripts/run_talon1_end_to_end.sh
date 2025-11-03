@@ -171,10 +171,15 @@ ls -lh "$FINAL_TSV" "$REPO_DIR/outputs/bulk_run_local_QC.log"  # [ref] verify si
 # 8) (Optional) Git commit
 # -----------------------------
 if [ -d "$REPO_DIR/.git" ]; then
-  cd "$REPO_DIR"  # [ref] enter repo [web:147]
-  git add outputs/tables/bulk_sc_talon_read_annot.tsv outputs/bulk_run_local_QC.log || true  # [ref] stage files [web:147]
-  git commit -m "Add TALON read-wise TSV and QC log (reproducible run script included)" || true  # [ref] commit artifacts [web:147]
-  echo "Committed changes (if any) to repo"  # [ref] notify commit status [web:147]
+  cd "$REPO_DIR"
+  # skip Git add if > 100MB
+  if [ -f "$FINAL_TSV" ] && [ "$(stat -f%z "$FINAL_TSV")" -lt 104857600 ]; then
+    git add outputs/tables/bulk_sc_talon_read_annot.tsv outputs/bulk_run_local_QC.log || true
+    git commit -m "Add TALON TSV and QC log" || true
+  else
+    echo "Skipping git add for large TSV (>100MB)"
+  fi
+  echo "Committed changes (if any) to repo"
 fi
 
 echo "DONE: TALON read-wise TSV produced and saved to repo."  # [ref] completion message [web:5][web:147]
