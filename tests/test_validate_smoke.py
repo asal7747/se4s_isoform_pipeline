@@ -1,4 +1,7 @@
 import os
+from pathlib import Path
+
+import pytest
 
 from se4s_isoform.talon_validate import (
     datasets_present,
@@ -13,6 +16,12 @@ REPO = os.path.expanduser(
 )
 TSV = os.path.join(REPO, "outputs", "tables", "bulk_sc_talon_read_annot.tsv")
 QC = os.path.join(REPO, "outputs", "bulk_run_local_QC.log")
+
+
+pytestmark = pytest.mark.skipif(
+    not Path(TSV).is_file() or not Path(QC).is_file(),
+    reason="Requires local TALON TSV and QC log not stored in repo",
+)
 
 
 def test_smoke_validate():
