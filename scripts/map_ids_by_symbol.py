@@ -1,18 +1,47 @@
 #!/usr/bin/env python
-import sys, pandas as pd, anndata as ad
+import sys
+from pathlib import Path
+
+import anndata as ad
+import pandas as pd
+
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage: map_ids_by_symbol.py <talon_tsv> <h5ad> <out_csv>")
+        print("Usage: map_ids_by_symbol.py <talon_tsv> <h5ad> <out_csv>", file=sys.stderr)
         sys.exit(2)
     tsv, h5ad, out_csv = sys.argv[1], sys.argv[2], sys.argv[3]
 
+    tsv_path = Path(tsv)
+    h5ad_path = Path(h5ad)
+
+    # Basic input checks
+    if not tsv_path.is_file():
+        print(f"ERROR: TALON TSV not found: {tsv_path}", file=sys.stderr)
+        sys.exit(1)
+    if not h5ad_path.is_file():
+        print(f"ERROR: AnnData .h5ad not found: {h5ad_path}", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate TALON header
+    header = pd.read_csv(tsv_path, sep="\t", nrows=1)
+    if "annot_gene_name" not in header.columns:
+        print(
+            "ERROR: TALON TSV is missing required column 'annot_gene_name'.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     # Load TALON symbols
-    talon = pd.read_csv(tsv, sep="\t", usecols=lambda c: c in {"annot_gene_name"}).dropna().drop_duplicates()
+    talon = (
+        pd.read_csv(tsv_path, sep="\t", usecols=["annot_gene_name"])
+        .dropna()
+        .drop_duplicates()
+    )
     talon_syms = set(talon["annot_gene_name"].astype(str))
 
     # Load AnnData
-    adata = ad.read_h5ad(h5ad)
+    adata = ad.read_h5ad(h5ad_path)
 
     # Candidate symbol sources in AnnData
     candidates = []
@@ -30,12 +59,20 @@ def main():
 
     # 3) Fallback: if transcript_id contains a trailing "-Symbol", parse it
     if "transcript_id" in adata.var.columns:
-        tparts = adata.var["transcript_id"].astype(str).str.rsplit("-", n=1, expand=True)
+        tparts = (
+            adata.var["transcript_id"]
+            .astype(str)
+            .str.rsplit("-", n=1, expand=True)
+        )
         if isinstance(tparts, pd.DataFrame) and tparts.shape[1] == 2:
             candidates.append(tparts[1].astype(str))
 
     if not candidates:
-        print("ERROR: Could not derive gene symbols from AnnData (no '-' split or symbol columns found)")
+        print(
+            "ERROR: Could not derive gene symbols from AnnData "
+            "(no '-' split or symbol columns found).",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Union of all candidate symbols
@@ -44,9 +81,17 @@ def main():
         ad_syms |= set(s.dropna().astype(str))
 
     matched_syms = sorted(ad_syms & talon_syms)
+    if not matched_syms:
+        print(
+            "WARNING: No overlapping symbols between TALON and AnnData; "
+            "writing empty symbol map.",
+            file=sys.stderr,
+        )
+
     out = pd.DataFrame({"match_type": "symbol", "gene": matched_syms})
     out.to_csv(out_csv, index=False)
     print(f"Matched {len(matched_syms)} by symbol -> {out_csv}")
+
 
 if __name__ == "__main__":
     main()

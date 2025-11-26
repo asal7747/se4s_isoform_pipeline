@@ -122,3 +122,60 @@ def test_assign_isoform_proxies_basic(tmp_path, small_talon_tsv, small_qc_h5ad, 
     # Expect highest-read-count transcripts chosen by our synthetic tallies
     assert proxies_by_gene.get("GeneA") == "TX1"
     assert proxies_by_gene.get("GeneB") == "TX3"
+
+def test_assign_isoform_proxies_no_expression(tmp_path, monkeypatch):
+    """
+    If a gene is in the symbol map but has zero expression in all cells,
+    no proxies should be assigned for that gene.
+    """
+    # TALON: GeneA present
+    talon_df = pd.DataFrame(
+        {
+            "annot_gene_name": ["GeneA"],
+            "annot_transcript_id": ["TX1"],
+        }
+    )
+    talon_path = tmp_path / "talon_no_expr.tsv"
+    talon_df.to_csv(talon_path, sep="\t", index=False)
+
+    # QC h5ad: GeneA present but zero counts
+    X = np.array([[0]], dtype=float)
+    obs = pd.DataFrame(index=["cell1"])
+    var = pd.DataFrame(index=["GeneA"])
+    adata = ad.AnnData(X=X, obs=obs, var=var)
+    h5ad_path = tmp_path / "scrna_qc_no_expr.h5ad"
+    adata.write_h5ad(h5ad_path)
+
+    # Clusters: one cluster, cell1 in cluster "0"
+    clusters_df = pd.DataFrame({"cell": ["cell1"], "cluster": ["0"]})
+    cluster_path = tmp_path / "cell_clusters_no_expr.csv"
+    clusters_df.to_csv(cluster_path, index=False)
+
+    # Symbol map: GeneA shared
+    symmap_df = pd.DataFrame({"match_type": ["symbol"], "gene": ["GeneA"]})
+    symmap_path = tmp_path / "talon_scrna_symbol_map_no_expr.csv"
+    symmap_df.to_csv(symmap_path, index=False)
+
+    out_csv = tmp_path / "isoform_proxies_no_expr.csv"
+
+    argv = [
+        "assign_isoform_proxies.py",
+        str(talon_path),
+        str(h5ad_path),
+        str(cluster_path),
+        str(symmap_path),
+        str(out_csv),
+    ]
+    monkeypatch.setattr(sys, "argv", argv)
+    assign_isoform_proxies.main()
+
+    assert out_csv.is_file()
+    df = pd.read_csv(out_csv)
+    assert list(df.columns) == [
+        "cluster",
+        "gene",
+        "mean_expr",
+        "proxy_transcript",
+        "proxy_read_count",
+    ]
+    assert df.empty

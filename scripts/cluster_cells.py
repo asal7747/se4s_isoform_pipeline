@@ -6,6 +6,7 @@ Produces `outputs/umap_clusters.png` after clustering completes.
 
 import os
 import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -14,17 +15,40 @@ import scanpy as sc
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: cluster_cells.py <qc_h5ad> <out_csv>")
+        print("Usage: cluster_cells.py <qc_h5ad> <out_csv>", file=sys.stderr)
         sys.exit(2)
     h5ad, out_csv = sys.argv[1], sys.argv[2]
 
-    adata = sc.read_h5ad(h5ad)
+    h5ad_path = Path(h5ad)
+    if not h5ad_path.is_file():
+        print(f"ERROR: QC h5ad not found: {h5ad_path}", file=sys.stderr)
+        sys.exit(1)
+
+    adata = sc.read_h5ad(h5ad_path)
+    if adata.n_obs == 0 or adata.n_vars == 0:
+        print(
+            f"ERROR: AnnData loaded from {h5ad_path} is empty "
+            f"({adata.n_obs} cells × {adata.n_vars} genes).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
     sc.pp.highly_variable_genes(adata, n_top_genes=2000)
     sc.tl.pca(adata, svd_solver="arpack")
     sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
-    sc.tl.leiden(adata, resolution=0.5)
+
+    try:
+        sc.tl.leiden(adata, resolution=0.5)
+    except ImportError as e:
+        print(
+            "ERROR: Leiden clustering requires `python-igraph` and `leidenalg` "
+            "to be installed in the environment.",
+            file=sys.stderr,
+        )
+        print(f"Underlying error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     clusters = pd.DataFrame(
         {"cell": adata.obs_names, "cluster": adata.obs["leiden"].astype(str)}
@@ -38,11 +62,9 @@ def main():
     os.makedirs("outputs", exist_ok=True)
     try:
         sc.tl.umap(adata)
-        # return_fig=True gives a matplotlib Figure we can save; show=False avoids GUI
         fig = sc.pl.umap(
             adata, color="leiden", legend_loc="on data", return_fig=True, show=False
         )
-        # sc.pl.umap may return a single Figure or a list; handle both
         if isinstance(fig, (list, tuple)) and len(fig) > 0:
             fig = fig[0]
         plt.figure(fig.number)
@@ -51,7 +73,7 @@ def main():
         print("Saved UMAP plot -> outputs/umap_clusters.png")
     except Exception as e:
         # Don't crash the script if plotting fails; report the error for reviewers
-        print(f"UMAP plotting failed: {e}")
+        print(f"UMAP plotting failed: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":

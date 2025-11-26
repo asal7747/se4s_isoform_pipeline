@@ -82,3 +82,41 @@ def test_map_ids_by_symbol_basic_overlap(tmp_path, small_talon_tsv, small_scrna_
     assert {"GeneA", "GeneB"}.issubset(genes)
     # Match type should be 'symbol'
     assert set(df["match_type"]) == {"symbol"}
+
+def test_map_ids_by_symbol_no_overlap(tmp_path, monkeypatch):
+    """
+    When there is no symbol overlap between TALON and AnnData, the script
+    should still run and write an empty CSV (but print a warning).
+    """
+    # TALON has GeneA only
+    talon_df = pd.DataFrame(
+        {
+            "annot_gene_name": ["GeneA"],
+            "annot_transcript_id": ["TX1"],
+        }
+    )
+    talon_path = tmp_path / "talon_no_overlap.tsv"
+    talon_df.to_csv(talon_path, sep="\t", index=False)
+
+    # AnnData has only GeneX
+    X = np.array([[1]], dtype=float)
+    obs = pd.DataFrame(index=["cell1"])
+    var = pd.DataFrame({"gene_name": ["GeneX"]}, index=["id1"])
+    adata = ad.AnnData(X=X, obs=obs, var=var)
+    h5ad_path = tmp_path / "scrna_no_overlap.h5ad"
+    adata.write_h5ad(h5ad_path)
+
+    out_csv = tmp_path / "talon_scrna_symbol_map_no_overlap.csv"
+
+    argv = [
+        "map_ids_by_symbol.py",
+        str(talon_path),
+        str(h5ad_path),
+        str(out_csv),
+    ]
+    monkeypatch.setattr(sys, "argv", argv)
+    map_ids_by_symbol.main()
+
+    assert out_csv.is_file()
+    df = pd.read_csv(out_csv)
+    assert df.empty
