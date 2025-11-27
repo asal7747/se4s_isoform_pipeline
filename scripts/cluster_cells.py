@@ -5,6 +5,14 @@ Default behavior produces `outputs/umap_clusters.png` after clustering completes
 
 Can be run as:
     python cluster_cells.py <qc_h5ad> <out_csv> [--pca] [--tsne] [--umap] [--color-by VARIABLE]
+
+Another example:
+    python3 scripts/cluster_cells.py outputs/anndata/combined_short_read_qc.h5ad clusters2.csv --resolution 0.8 --n-pcs 15 --force-recluster --save-figures --pca --tsne --umap
+    
+    This would create:
+    - outputs/clustering/pca_<color_by>.png
+    - outputs/clustering/tsne_<color_by>.png
+    - outputs/clustering/umap_<color_by>.png
 """
 
 import os
