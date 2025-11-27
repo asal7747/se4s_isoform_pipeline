@@ -168,34 +168,6 @@ def load_long_read_datasets(data_dir: str = "outputs/anndata") -> dict[str, sc.A
     return datasets
 
 
-def append_short_read_dfs(dfs: list[pd.DataFrame]) -> pd.DataFrame:
-    """
-    Concatenate multiple short-read DataFrames into a single DataFrame.
-    
-    Combines DataFrames vertically (along rows/axis=0), preserving all
-    columns. Useful for merging multiple cell-by-gene matrices from
-    different samples or conditions.
-    
-    Args:
-        dfs: List of pandas DataFrames to concatenate
-        
-    Returns:
-        Combined DataFrame with all input DataFrames stacked vertically
-        
-    Raises:
-        ValueError: If dfs is empty or contains non-DataFrame objects
-    """
-    if not dfs:
-        raise ValueError("Cannot concatenate empty list of DataFrames")
-    
-    combined_df = pd.concat(dfs, axis=0)
-    return combined_df
-
-
-# function to combine anndata objects and add to uns
-def combine_datasets() -> None:
-    pass
-
 def qc_and_filter(
     adata: sc.AnnData,
     min_counts: int = 1000,
