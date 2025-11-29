@@ -1,191 +1,156 @@
 # se4s_isoform_pipeline
 
-A reproducible Python pipeline to bridge short‑read single‑cell RNA‑seq with long‑read isoform resolution in C2C12 muscle cells. Includes QC, clustering, isoform‑aware proxies, and a TALON-based read‑wise annotation step.
+A reproducible Python pipeline to bridge short‑read single‑cell RNA‑seq with long‑read isoform resolution in C2C12 muscle cells. It runs QC and clustering on ENCODE scRNA data, maps genes to TALON long‑read annotations, and assigns cluster‑specific “isoform proxy” transcripts.
 
 ---
 
-## Features
-- **Long‑read read‑wise annotation** built on TALON 5.0 with a config‑driven workflow and mm10 vM21 gene models.
-- **Containerized labeling option** and local x86_64 conda environment for robust Apple Silicon support.
-- **Clear separation of inputs, scripts, and outputs** to enable reruns and downstream analyses.
+## What this repo contains
 
-# se4s_isoform_pipeline
-
-A reproducible Python pipeline to bridge short‑read single‑cell RNA‑seq with
-long‑read isoform resolution in C2C12 muscle cells. Includes QC, clustering,
-isoform‑aware proxies, and a TALON-based read‑wise annotation step.
+- Long‑read utilities built on **TALON 5.0** (`se4s` CLI and `se4s_isoform` library).
+- Short‑read **Scanpy** pipeline (QC, clustering, UMAP).
+- Integration scripts to map TALON gene symbols and assign isoform proxies per gene and cluster.
+- Lightweight **pytest** tests for QC, clustering, mapping, and proxy assignment.
 
 ---
 
-## Features
-- **Long‑read read‑wise annotation** built on TALON 5.0 with a config‑driven
-	workflow and mm10 vM21 gene models.
-- **Containerized labeling option** and local x86_64 conda environment for
-	robust Apple Silicon support.
-- **Clear separation of inputs, scripts, and outputs** to enable reruns and
-	downstream analyses.
+## Install
 
-## External Inputs
-- **ENCODE long‑read datasets** (PacBio Iso‑Seq; mouse C2C12):
-	- ENCFF003OWX, ENCFF019HRC, ENCFF669LWV, ENCFF676BYQ (stored under
-		`work/longread/bulk/<dataset>/`).
-- **Mouse genome (mm10/GRCm38) FASTA** from UCSC bigZips (e.g., `mm10.fa.gz`)
-	with samtools index (`mm10.fa.fai`), placed under `refs/mm10.fa(.gz)`.
-- **GENCODE M21 annotation** for mm10 with UCSC names
-	(`gencode.vM21.primary_assembly.annotation_UCSC_names.gtf.gz`) used to
-	initialize and interpret the TALON database.
-- **TALON database** for mm10 vM21 (`mm10_vM21.db`) stored under
-	`work/longread/talon/` as the target DB for annotation and exporter steps.
+Install the Python package (for the TALON utilities) in a virtual env:
 
-## Requirements
-- Docker Desktop on macOS (optional, for containerized labeling and
-	consistent runtimes)
-- Bioconda TALON 5.0 under an x86_64 (Rosetta) conda environment with Python
-	3.7
-- TALON’s config‑driven interface and a four‑column CSV listing dataset,
-	description, platform, and labeled SAM paths
+```
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+```
 
-## Quickstart: TALON Read‑wise TSV
-1. **Prepare labeled SAMs** for each ENCODE dataset (`clean_labeled.sam`
-	 under `work/longread/bulk/<dataset>/labeled/`) using `talon_label_reads`, or
-	 verify they already exist.
-2. **Activate the x86_64 conda env** and run TALON 5.0 with minimal supported
-	 flags: `--f`, `--db`, `--build`, `--threads`, `--cov`, `--identity`,
-	 `--o`.
-3. **Write outprefix and QC** to a local, non‑synced scratch directory for
-	 performance, then copy the final TSV and log into `outputs/`.
+Create or activate a conda/mamba env for the short‑read side:
 
-### Example
-- **Labeling (Docker; optional):** Mount project at `/data` and run
-	`talon_label_reads` against `mm10.fa` with temporary space in dataset‑scoped
-	tmp.
-- **Annotation (conda; TALON 5.0):** Build `config.csv` with absolute host
-	paths to labeled SAMs, run `talon` to produce `OUTPREFIX_talon_read_annot.tsv`
-	# se4s_isoform_pipeline
+- Python 3.12
+- scanpy, anndata, numpy, pandas, matplotlib, scikit‑learn, pytest
 
-	A small, reproducible pipeline that validates TALON long‑read annotations, summarizes isoforms, and ships a simple CLI for quick exploration; built for C2C12 with room to plug in scRNA‑seq next.
+Example:
 
-	## Why it exists
+```
+mamba activate se4s_isoform_env
+```
 
-	Show what long reads add beyond a standard short‑read baseline by validating TALON outputs and producing isoform summaries that are easy to reuse.
+---
 
-	## Install
+## Core workflows
 
-	Python environment:
+### 1. TALON validation and summaries (long‑read)
 
-	```bash
-	python3 -m venv .venv && source .venv/bin/activate
-	pip install -e .
-	```
+Validate a TALON TSV and QC log:
 
-	## Quickstart
+```
+se4s validate --tsv outputs/tables/bulk_sc_talon_read_annot.tsv --qc outputs/bulk_run_local_QC.log
+```
 
-	Validate TALON outputs:
+Summarize top isoforms/genes:
 
-	```bash
-	se4s validate --tsv outputs/tables/bulk_sc_talon_read_annot.tsv --qc outputs/bulk_run_local_QC.log
-	```
+```
+se4s counts \
+  --tsv outputs/tables/bulk_sc_talon_read_annot.tsv \
+  --out outputs/tables \
+  --dataset ENCFF003OWX \
+  --top 50
+```
 
-	Optional SAM spot‑check (when SAMs exist):
+Optional isoform QC table:
 
-	```bash
-	se4s validate --tsv ... --qc ... --enable-spotcheck --se4s-root "/path/to/SE4S"
-	```
+```
+python - <<'PY'
+from se4s_isoform.talon_to_counts import write_isoform_qc_table
+write_isoform_qc_table('outputs/tables/bulk_sc_talon_read_annot.tsv','outputs/tables')
+PY
+```
 
-	Summarize counts:
+### 2. Short‑read QC, clustering, mapping, proxies
 
-	```bash
-	se4s counts --tsv outputs/tables/bulk_sc_talon_read_annot.tsv --out outputs/tables --dataset ENCFF003OWX --top 50
-	```
+Download ENCODE `.h5ad` files (once):
 
-	Isoform QC table (per‑gene novelty pivot):
+```
+bash scripts/download_single_cell_data.sh outputs/anndata
+```
 
-	```bash
-	python - <<'PY'
-	from se4s_isoform.talon_to_counts import write_isoform_qc_table
-	write_isoform_qc_table('outputs/tables/bulk_sc_talon_read_annot.tsv','outputs/tables')
-	PY
-	```
+QC a short‑read dataset:
 
-	### Short-read scRNA ingest, QC, clustering, and mapping
+```
+python scripts/utils.py \
+  outputs/anndata/short_shallow.h5ad \
+  outputs/anndata
+# -> outputs/anndata/short_shallow_qc.h5ad
+```
 
-	1) Download ENCODE h5ad files
-	```bash
-	bash scripts/download_single_cell_data.sh outputs/anndata
-	```
+Cluster cells (PCA + neighbors + Leiden) and write a UMAP:
 
-	2) QC (requires scanpy in sc_env)
-	```bash
-	mamba activate sc_env
-	python scripts/utils.py outputs/anndata/short_shallow.h5ad outputs/anndata
-	```
-	→ `outputs/anndata/short_shallow_qc.h5ad` (≈7,465 cells × ≈19,231 genes)
+```
+python scripts/cluster_cells.py \
+  outputs/anndata/short_shallow_qc.h5ad \
+  outputs/tables/cell_clusters.csv
+# -> outputs/umap_clusters.png
+```
 
-	3) Map TALON gene symbols to scRNA
-	```bash
-	python scripts/map_ids_by_symbol.py \
-	  outputs/tables/bulk_sc_talon_read_annot.tsv \
-	  outputs/anndata/short_shallow_qc.h5ad \
-	  outputs/tables/talon_scrna_symbol_map.csv
-	```
-	→ 15,758 gene overlaps
+Map TALON gene symbols to scRNA:
 
-	4) Cluster cells (Leiden)
-	```bash
-	python scripts/cluster_cells.py \
-	  outputs/anndata/short_shallow_qc.h5ad \
-	  outputs/tables/cell_clusters.csv
-	```
-	→ 6 clusters over 7,465 cells
+```
+python scripts/map_ids_by_symbol.py \
+  outputs/tables/bulk_sc_talon_read_annot.tsv \
+  outputs/anndata/short_shallow_qc.h5ad \
+  outputs/tables/talon_scrna_symbol_map.csv
+```
 
-	5) Assign isoform proxies (cluster, gene → top TALON transcript)
-	```bash
-	python scripts/assign_isoform_proxies.py \
-	  outputs/tables/bulk_sc_talon_read_annot.tsv \
-	  outputs/anndata/short_shallow_qc.h5ad \
-	  outputs/tables/cell_clusters.csv \
-	  outputs/tables/talon_scrna_symbol_map.csv \
-	  outputs/tables/isoform_proxies.csv
-	```
-	→ 89,888 proxy rows
+Assign isoform proxies (cluster, gene → top TALON transcript):
 
-	Outputs:
-	- `outputs/tables/talon_scrna_symbol_map.csv` — shared genes (15,758)  
-	- `outputs/tables/cell_clusters.csv` — cluster labels for each cell  
-	- `outputs/tables/isoform_proxies.csv` — cluster‑gene mean expression and assigned top TALON transcript
+```
+python scripts/assign_isoform_proxies.py \
+  outputs/tables/bulk_sc_talon_read_annot.tsv \
+  outputs/anndata/short_shallow_qc.h5ad \
+  outputs/tables/cell_clusters.csv \
+  outputs/tables/talon_scrna_symbol_map.csv \
+  outputs/tables/isoform_proxies.csv
+```
 
-	See `notebooks/scRNA_QC_EDA.ipynb` for QC, PCA, UMAP, and decisions. (See attachments above for file contents. You may not need to search or read the file again.)
+Optional: benchmark isoform diversity (TALON vs proxy isoforms per gene):
 
-	## Outputs
+```
+python scripts/benchmark_isoform_diversity.py \
+  outputs/tables/bulk_sc_talon_read_annot.tsv \
+  outputs/tables/isoform_proxies.csv \
+  outputs/tables/isoform_diversity_benchmark.csv
+```
 
-	`outputs/bulk_run_local_QC.log`
-	: TALON run parameters and QC summary.
+---
 
-	`outputs/tables/top_transcripts_<DATASET>.csv` and `outputs/tables/top_genes_<DATASET>.csv`
-	: top isoforms/genes by read support.
+## One‑shot pipeline
 
-	`outputs/tables/isoform_qc_table.csv`
-	: per‑gene counts of novelty classes (e.g., Known, NIC, NNC, ISM).
+To run QC → clustering → mapping → isoform proxies in one command:
 
-	## What’s included (v0.1)
+```
+python scripts/run_full_pipeline.py \
+  /path/to/bulk_sc_talon_read_annot.tsv \
+  outputs/anndata/short_shallow_qc.h5ad \
+  outputs/
+```
 
-	- CLI: `se4s validate` (schema/coords/novelty/QC; optional spot‑check), `se4s counts` (top lists, CSVs).
-	- Library: `talon_to_counts` (counts by transcript/gene, isoform_qc_table), `talon_validate` (core checks).
-	- Tests: lightweight `pytest` smoke tests for validator and counts.
+Outputs go under `outputs/anndata/`, `outputs/tables/`, and `outputs/umap_clusters.png`.
 
-	## Minimal requirements
+---
 
-	- TALON‑produced TSV and QC log for validation/summaries.
-	- Optional: labeled SAMs only if enabling spot‑check.
+## Tests
 
-	## Notes / next steps
+Run the unit tests:
 
-	- Keep large artifacts (TSV/H5/H5AD) out of Git; small CSVs are fine to track.
-	- CI: run `pytest` on push/PR (recommended).
-	- See `configs/example.yml` for path examples you can adapt.
+```
+pytest -v
+```
 
-	## License
+Large TALON‑dependent smoke tests are skipped automatically if the big TSV/log are not present.
 
-	Project license is included in `LICENSE` and covers the pipeline code and repository assets; external inputs remain under their respective source licenses and data use policies.
+---
 
+## Notes
 
+- Large files and generated outputs under `outputs/` are not tracked by Git; re‑run the pipeline to regenerate them.
+- See `notebooks/scRNA_QC_EDA.ipynb` for exploratory QC and clustering decisions.
+- TALON itself and ENCODE inputs remain under their original licenses and usage policies.
+```
