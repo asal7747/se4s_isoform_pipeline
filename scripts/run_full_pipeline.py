@@ -79,7 +79,7 @@ def main():
     run(
         [
             sys.executable,
-            str(SCRIPTS / "cluster_cells.py"),
+            str(SCRIPTS / "run_cluster_cells.py"),
             str(qc_h5ad),
             str(clusters_csv),
         ]
