@@ -440,16 +440,24 @@ def main():
             )
             if isinstance(fig, (list, tuple)) and len(fig) > 0:
                 fig = fig[0]
+
             plt.figure(fig.number)
-            
-            # Create output directory if needed and save to output_dir
+
+            # Nick's path: outputs/clustering/umap_clusters.png
             output_dir = Path(args.output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
             umap_path = output_dir / "umap_clusters.png"
-            
             plt.savefig(str(umap_path), dpi=200, bbox_inches="tight")
-            plt.close(fig)
             print(f"Saved UMAP plot -> {umap_path}")
+
+            # Legacy path expected by tests/pipeline: outputs/umap_clusters.png
+            default_dir = Path("outputs")
+            default_dir.mkdir(parents=True, exist_ok=True)
+            default_umap_path = default_dir / "umap_clusters.png"
+            plt.savefig(str(default_umap_path), dpi=200, bbox_inches="tight")
+            print(f"Saved UMAP plot -> {default_umap_path}")
+
+            plt.close(fig)
         except Exception as e:
             # Non-fatal: clustering results are still valid even if plotting fails
             print(

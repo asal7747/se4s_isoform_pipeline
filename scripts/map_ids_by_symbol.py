@@ -57,7 +57,7 @@ def main():
         if col in adata.var.columns:
             candidates.append(adata.var[col].astype(str))
 
-    # 3) Fallback: if transcript_id contains a trailing "-Symbol", parse it
+        # 3) Fallback: if transcript_id contains a trailing "-Symbol", parse it
     if "transcript_id" in adata.var.columns:
         tparts = (
             adata.var["transcript_id"]
@@ -68,12 +68,13 @@ def main():
             candidates.append(tparts[1].astype(str))
 
     if not candidates:
+        # Final fallback: treat var_names themselves as gene symbols
         print(
-            "ERROR: Could not derive gene symbols from AnnData "
-            "(no '-' split or symbol columns found).",
+            "WARNING: No explicit symbol columns or '-' patterns found in AnnData; "
+            "falling back to using var_names as gene symbols.",
             file=sys.stderr,
         )
-        sys.exit(1)
+        candidates.append(pd.Index(adata.var_names.astype(str)))
 
     # Union of all candidate symbols
     ad_syms = set()
@@ -91,7 +92,6 @@ def main():
     out = pd.DataFrame({"match_type": "symbol", "gene": matched_syms})
     out.to_csv(out_csv, index=False)
     print(f"Matched {len(matched_syms)} by symbol -> {out_csv}")
-
 
 if __name__ == "__main__":
     main()
