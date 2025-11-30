@@ -76,20 +76,18 @@ def main():
 
     # 2) Cluster cells
     clusters_csv = outdir / "tables" / "cell_clusters.csv"
+    plots_dir = outdir / "plots"
     run(
         [
             sys.executable,
             str(SCRIPTS / "run_cluster_cells.py"),
             str(qc_h5ad),
             str(clusters_csv),
+            "--output-dir",
+            str(plots_dir),
         ]
     )
-    # cluster_cells.py writes outputs/umap_clusters.png relative to repo root;
-    # optionally copy it into outdir/plots for convenience.
-    umap_src = REPO_ROOT / "outputs" / "umap_clusters.png"
-    umap_dst = outdir / "plots" / "umap_clusters.png"
-    if umap_src.is_file():
-        umap_dst.write_bytes(umap_src.read_bytes())
+    # run_cluster_cells.py will write umap_clusters.png to the plots directory
 
     # 3) Map IDs by symbol
     symbol_map_csv = outdir / "tables" / "talon_scrna_symbol_map.csv"

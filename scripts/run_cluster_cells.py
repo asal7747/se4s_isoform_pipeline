@@ -28,7 +28,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import scanpy as sc
 
-from . import cluster_cells as cc
+# Handle both direct execution and module import
+try:
+    from . import cluster_cells as cc
+except ImportError:
+    import cluster_cells as cc
 
 
 def main():
@@ -437,9 +441,15 @@ def main():
             if isinstance(fig, (list, tuple)) and len(fig) > 0:
                 fig = fig[0]
             plt.figure(fig.number)
-            plt.savefig("outputs/umap_clusters.png", dpi=200, bbox_inches="tight")
+            
+            # Create output directory if needed and save to output_dir
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            umap_path = output_dir / "umap_clusters.png"
+            
+            plt.savefig(str(umap_path), dpi=200, bbox_inches="tight")
             plt.close(fig)
-            print("Saved UMAP plot -> outputs/umap_clusters.png")
+            print(f"Saved UMAP plot -> {umap_path}")
         except Exception as e:
             # Non-fatal: clustering results are still valid even if plotting fails
             print(

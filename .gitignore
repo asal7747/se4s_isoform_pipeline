@@ -82,3 +82,4 @@ outputs/**/*.gff
 *.swo
 
 # Optional: keep CHANGELOG/README tracked
+tests/test_data_cluster_cells.h5ad
