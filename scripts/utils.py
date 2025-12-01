@@ -434,7 +434,8 @@ def load_and_combine_short_reads(
         short_read_datasets[name] = short_read_adata_index(adata)
 
     # Concatenate into single AnnData
-    combined_adata = anndata.concat(list(short_read_datasets.values()), axis=0)
+    # Use merge='same' to preserve var metadata that is the same across all datasets
+    combined_adata = anndata.concat(list(short_read_datasets.values()), axis=0, merge='same')
 
     # Add dataset name to uns for later use (e.g., in QC output filenames)
     combined_adata.uns["dataset_name"] = "combined_short_read"

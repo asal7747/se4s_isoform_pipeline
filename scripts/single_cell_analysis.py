@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Single-cell RNA-seq analysis pipeline.
+Single-cell RNA-seq analysis pipeline. 
+This is meant to be an example of how to use utils.py and cluster_cells.py.
 
 This script performs the complete analysis workflow:
 1. Load and combine short-read datasets
@@ -8,11 +9,17 @@ This script performs the complete analysis workflow:
 3. QC and filter short-read data
 4. Normalize and transform data
 5. Run dimensionality reduction (PCA, t-SNE, UMAP)
+6. Transfer UMAP coordinates from short-read to long-read data
+
+Only writes combined long-read datasets to outputs/anndata, as well as
+combined short-read dataset after QC/filtering.
+See utils.py and cluster_cells.py for helper functions.
 """
 
 import anndata
 import cluster_cells as cc
 import utils
+import os
 
 
 def main():
@@ -24,7 +31,7 @@ def main():
 
     # Load long read anndata
     print("\nLoading long-read datasets...")
-    long_read_datasets = utils.load_long_read_datasets()
+    long_read_datasets = utils.load_long_read_datasets(data_dir="data")
     for name, adata in long_read_datasets.items():
         print(f'Dataset: {name}')
         print(adata)
@@ -43,12 +50,17 @@ def main():
     # We want to examine both separately, so we will make 2 different combined anndata objects
 
     # Combine long read anndata objects ending in "transcript" or "gene" into 1
+    # Use merge='same' to keep var metadata that is the same across all datasets
     print("\nCombining long-read datasets...")
     combined_long_read_adata_transcript = anndata.concat(
-        [long_transcript, long_myotube_transcript, long_nuc_transcript], axis=0
+        [long_transcript, long_myotube_transcript, long_nuc_transcript], 
+        axis=0, 
+        merge='same'
     )
     combined_long_read_adata_gene = anndata.concat(
-        [long_gene, long_myotube_gene, long_nuc_gene], axis=0
+        [long_gene, long_myotube_gene, long_nuc_gene], 
+        axis=0,
+        merge='same'
     )
     print(f'Combined long read transcript anndata shape: {combined_long_read_adata_transcript.shape}')
     print(f'Combined long read gene anndata shape: {combined_long_read_adata_gene.shape}')
@@ -66,6 +78,39 @@ def main():
     print(f'Number of barcodes in long read gene: {len(combined_long_read_adata_gene_names)}')
     print(f'Number of barcodes in combined_short_read_adata: {len(combined_short_read_barcodes)}')
     print(f'Number of matching barcodes: {len(matching_barcodes)}')
+
+    # Transfer SampleType metadata from short-read to long-read based on matching barcodes
+    print("\nTransferring SampleType metadata from short-read to long-read data...")
+    for barcode in combined_long_read_adata_gene.obs_names:
+        if barcode in combined_short_read_adata.obs_names:
+            # Get SampleType from short-read data
+            sample_type = combined_short_read_adata.obs.loc[barcode, 'SampleType']
+            combined_long_read_adata_gene.obs.loc[barcode, 'SampleType'] = sample_type
+        else:
+            # Mark as unknown if not found in short-read data
+            combined_long_read_adata_gene.obs.loc[barcode, 'SampleType'] = 'Unknown'
+    
+    # Do the same for transcript-level data
+    for barcode in combined_long_read_adata_transcript.obs_names:
+        if barcode in combined_short_read_adata.obs_names:
+            sample_type = combined_short_read_adata.obs.loc[barcode, 'SampleType']
+            combined_long_read_adata_transcript.obs.loc[barcode, 'SampleType'] = sample_type
+        else:
+            combined_long_read_adata_transcript.obs.loc[barcode, 'SampleType'] = 'Unknown'
+    
+    # Print summary of transferred SampleType
+    print("Long-read gene SampleType distribution:")
+    print(combined_long_read_adata_gene.obs['SampleType'].value_counts())
+    print("\nLong-read transcript SampleType distribution:")
+    print(combined_long_read_adata_transcript.obs['SampleType'].value_counts())
+
+    # Save combined long-read datasets WITH SampleType metadata
+    print("\nSaving combined long-read datasets with SampleType metadata...")
+    os.makedirs("outputs/anndata", exist_ok=True)
+    combined_long_read_adata_transcript.write_h5ad("outputs/anndata/combined_long_read_transcript.h5ad")
+    combined_long_read_adata_gene.write_h5ad("outputs/anndata/combined_long_read_gene.h5ad")
+    print("  Saved: outputs/anndata/combined_long_read_transcript.h5ad")
+    print("  Saved: outputs/anndata/combined_long_read_gene.h5ad")
 
     # Test QC and filter function on combined short read anndata
     print("\nRunning QC and filtering on short-read data...")
@@ -96,6 +141,20 @@ def main():
     norm_combined_short_read_adata = cc.compute_umap(
         norm_combined_short_read_adata, color_by='SampleType'
     )
+    
+    # Transfer UMAP coordinates to long-read data and create comparison plots
+    print("\nTransferring UMAP coordinates from short-read to long-read data...")
+    combined_long_read_adata_gene = cc.transfer_umap_coordinates(
+        source_adata=norm_combined_short_read_adata,
+        target_adata=combined_long_read_adata_gene,
+        plot_output_dir="outputs/anndata",
+        color_by='SampleType'
+    )
+    
+    # Save updated long-read data with transferred UMAP
+    print("\nSaving long-read data with transferred UMAP coordinates...")
+    combined_long_read_adata_gene.write_h5ad("outputs/anndata/combined_long_read_gene_with_umap.h5ad")
+    print("  Saved: outputs/anndata/combined_long_read_gene_with_umap.h5ad")
     
     print("\nAnalysis complete!")
 
