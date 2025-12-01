@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Single-cell RNA-seq analysis pipeline. Example of how to use utils.py and cluster_cells.py.
+Single-cell RNA-seq analysis pipeline. 
+This is meant to be an example of how to use utils.py and cluster_cells.py.
 
 This script performs the complete analysis workflow:
 1. Load and combine short-read datasets
@@ -160,29 +161,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# Load the data
-# NOTE: Need to use the processed data that has UMAP, not just QC'd data
-# First, process the short-read data through the full pipeline
-# short_read = utils.get_anndata("outputs/anndata/combined_short_read_qc.h5ad")
-
-# # Normalize and compute UMAP if not already done
-# if 'X_umap' not in short_read.obsm:
-#     print("Processing short-read data: normalizing, PCA, UMAP...")
-#     short_read = cc.normalize_and_transform_adata(short_read, output_dir="outputs/anndata")
-#     short_read = cc.run_pca_analysis(short_read, color_by='SampleType')
-#     short_read = cc.compute_umap(short_read, color_by='SampleType')
-#     print("UMAP computed!")
-# else:
-#     print("Short-read data already has UMAP coordinates")
-
-# long_read = utils.get_anndata("outputs/anndata/combined_long_read_gene.h5ad")
-
-# # Transfer UMAP
-# long_read_with_umap = cc.transfer_umap_coordinates(
-#     source_adata=short_read,
-#     target_adata=long_read,
-#     plot_output_dir="outputs/anndata",
-#     color_by='SampleType'  # or 'CellType' or None
-# )
