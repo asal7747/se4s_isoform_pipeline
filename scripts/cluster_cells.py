@@ -354,6 +354,142 @@ def normalize_column_name(adata: sc.AnnData, column_name: str) -> str | None:
     return None
 
 
+def transfer_umap_coordinates(source_adata, target_adata, plot_output_dir=None, color_by=None):
+    """Transfer UMAP coordinates from source to target AnnData based on matching cell barcodes.
+    
+    Args:
+        source_adata: AnnData with UMAP coordinates (e.g., short-read data)
+        target_adata: AnnData to transfer coordinates to (e.g., long-read data)
+        plot_output_dir: Optional directory to save comparison plots
+        color_by: Optional variable to color cells by (must exist in both .obs)
+        
+    Returns:
+        target_adata with transferred UMAP coordinates in .obsm['X_umap_transferred']
+    """
+    import numpy as np
+    
+    # Check that source has UMAP
+    if 'X_umap' not in source_adata.obsm:
+        raise ValueError("Source AnnData does not have UMAP coordinates. Run sc.tl.umap() first.")
+    
+    # Find matching barcodes
+    source_barcodes = set(source_adata.obs_names)
+    target_barcodes = set(target_adata.obs_names)
+    common_barcodes = source_barcodes & target_barcodes
+    
+    print(f"\nTransferring UMAP coordinates...")
+    print(f"  Source cells: {len(source_barcodes)}")
+    print(f"  Target cells: {len(target_barcodes)}")
+    print(f"  Common cells: {len(common_barcodes)}")
+    
+    if len(common_barcodes) == 0:
+        raise ValueError("No common barcodes between source and target datasets!")
+    
+    # Create a mapping of barcode to UMAP coordinates
+    umap_coords = pd.DataFrame(
+        source_adata.obsm['X_umap'],
+        index=source_adata.obs_names,
+        columns=['UMAP1', 'UMAP2']
+    )
+    
+    # Transfer coordinates to target (only for matching cells)
+    target_umap = np.full((target_adata.n_obs, 2), np.nan)
+    for i, barcode in enumerate(target_adata.obs_names):
+        if barcode in common_barcodes:
+            target_umap[i] = umap_coords.loc[barcode].values
+    
+    # Store in target
+    target_adata.obsm['X_umap_transferred'] = target_umap
+    
+    # Debug: Check if color_by column exists in target
+    if color_by:
+        if color_by in target_adata.obs.columns:
+            print(f"  Color by '{color_by}' found in target data:")
+            print(f"    {target_adata.obs[color_by].value_counts().to_dict()}")
+        else:
+            print(f"  WARNING: '{color_by}' not found in target data columns")
+            print(f"  Available columns: {list(target_adata.obs.columns)}")
+    
+    # Create comparison plot if requested
+    if plot_output_dir is not None:
+        plot_output_dir = Path(plot_output_dir)
+        plot_output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create side-by-side comparison
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+        
+        # Plot source data
+        ax1 = axes[0]
+        if color_by and color_by in source_adata.obs.columns:
+            # Color by variable
+            categories = source_adata.obs[color_by].unique()
+            colors = plt.cm.tab20(np.linspace(0, 1, len(categories)))
+            for i, cat in enumerate(categories):
+                mask = source_adata.obs[color_by] == cat
+                ax1.scatter(
+                    source_adata.obsm['X_umap'][mask, 0],
+                    source_adata.obsm['X_umap'][mask, 1],
+                    c=[colors[i]], label=cat, s=10, alpha=0.7
+                )
+            ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
+        else:
+            ax1.scatter(
+                source_adata.obsm['X_umap'][:, 0],
+                source_adata.obsm['X_umap'][:, 1],
+                c='blue', s=10, alpha=0.5
+            )
+        ax1.set_xlabel('UMAP1', fontsize=12)
+        ax1.set_ylabel('UMAP2', fontsize=12)
+        ax1.set_title(f'Source Data (n={source_adata.n_obs})', fontsize=14, fontweight='bold')
+        ax1.grid(alpha=0.3)
+        
+        # Plot target data with transferred coordinates
+        ax2 = axes[1]
+        mask = ~np.isnan(target_umap[:, 0])  # Only plot cells with transferred coords
+        if color_by and color_by in target_adata.obs.columns:
+            # Get categories, filtering out NaN and 'Unknown' values for cleaner visualization
+            categories = target_adata.obs.loc[target_adata.obs_names[mask], color_by].unique()
+            # Filter out None/NaN values
+            categories = [cat for cat in categories if pd.notna(cat)]
+            
+            if len(categories) > 0:
+                colors = plt.cm.tab20(np.linspace(0, 1, len(categories)))
+                for i, cat in enumerate(categories):
+                    cat_mask = (target_adata.obs[color_by] == cat) & mask
+                    if cat_mask.sum() > 0:  # Only plot if there are cells in this category
+                        ax2.scatter(
+                            target_umap[cat_mask, 0],
+                            target_umap[cat_mask, 1],
+                            c=[colors[i]], label=cat, s=10, alpha=0.7
+                        )
+                ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
+            else:
+                # Fallback if no valid categories
+                ax2.scatter(
+                    target_umap[mask, 0],
+                    target_umap[mask, 1],
+                    c='red', s=10, alpha=0.5
+                )
+        else:
+            ax2.scatter(
+                target_umap[mask, 0],
+                target_umap[mask, 1],
+                c='red', s=10, alpha=0.5
+            )
+        ax2.set_xlabel('UMAP1', fontsize=12)
+        ax2.set_ylabel('UMAP2', fontsize=12)
+        ax2.set_title(f'Target Data with Transferred UMAP (n={mask.sum()})', fontsize=14, fontweight='bold')
+        ax2.grid(alpha=0.3)
+        
+        plt.tight_layout()
+        output_path = plot_output_dir / "umap_transfer_comparison.png"
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"  Saved: {output_path}")
+    
+    return target_adata
+
+
 def main():
     """Main entry point for the cluster_cells module.
     
