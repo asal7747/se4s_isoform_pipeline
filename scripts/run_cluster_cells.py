@@ -5,13 +5,18 @@ Run the cluster_cells.py script to cluster QC'd scRNA cells.
 Can be used to cluster cells from a QC'd h5ad file using the functions
 in cluster_cells.py. Options allow generating PCA, t-SNE, and UMAP plots.
 
-Default behavior produces `outputs/umap_clusters.png` after clustering completes.
+Default behavior produces `outputs/umap_clusters.png` after clustering
+completes.
 
 Can be run as:
-    python cluster_cells.py <qc_h5ad> <out_csv> [--pca] [--tsne] [--umap] [--color-by VARIABLE]
+    python cluster_cells.py <qc_h5ad> <out_csv> [--pca] [--tsne] [--umap]
+    [--color-by VARIABLE]
 
 Another example:
-    python3 scripts/cluster_cells.py outputs/anndata/combined_short_read_qc.h5ad clusters2.csv --resolution 0.8 --n-pcs 15 --force-recluster --save-figures --pca --tsne --umap
+    python3 scripts/cluster_cells.py \
+    outputs/anndata/combined_short_read_qc.h5ad clusters2.csv \
+    --resolution 0.8 --n-pcs 15 --force-recluster \
+    --save-figures --pca --tsne --umap
 
     This would create:
     - outputs/clustering/pca_<color_by>.png
@@ -38,20 +43,25 @@ except ImportError:
 def main():
     # Parse arguments using argparse
     parser = argparse.ArgumentParser(
-        description="Cluster QC'd scRNA cells using PCA + Leiden/Louvain and generate optional dimensionality reduction plots.",
+        description="Cluster QC'd scRNA cells using PCA + Leiden/Louvain"
+        "and generate optional dimensionality reduction plots.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     # Positional arguments
     parser.add_argument("qc_h5ad", type=str, help="Path to QC'd h5ad file")
     parser.add_argument(
-        "out_csv", type=str, help="Path to output CSV file for cluster assignments"
+        "out_csv", type=str,
+        help="Path to output CSV file for cluster assignments"
     )
 
     # Optional plotting flags
-    parser.add_argument("--pca", action="store_true", help="Generate PCA plots")
-    parser.add_argument("--tsne", action="store_true", help="Generate t-SNE plots")
-    parser.add_argument("--umap", action="store_true", help="Generate UMAP plots")
+    parser.add_argument("--pca", action="store_true",
+                        help="Generate PCA plots")
+    parser.add_argument("--tsne", action="store_true",
+                        help="Generate t-SNE plots")
+    parser.add_argument("--umap", action="store_true",
+                        help="Generate UMAP plots")
     parser.add_argument(
         "--color-by",
         type=str,
@@ -95,7 +105,8 @@ def main():
     parser.add_argument(
         "--force-recluster",
         action="store_true",
-        help="Force re-clustering even if leiden results already exist in the dataset",
+        help="Force re-clustering even if leiden results already exist"
+        " in the dataset",
     )
 
     args = parser.parse_args()
@@ -122,7 +133,8 @@ def main():
         adata = sc.read_h5ad(h5ad_path)
         print(f"  ✓ Loaded {adata.n_obs} cells × {adata.n_vars} genes")
     except Exception as e:
-        print(f"ERROR: Failed to read h5ad file '{h5ad_path}': {e}", file=sys.stderr)
+        print(f"ERROR: Failed to read h5ad file '{h5ad_path}': {e}",
+              file=sys.stderr)
         sys.exit(1)
 
     # Validate basic structure
@@ -146,13 +158,15 @@ def main():
     MIN_GENES = 100
     if adata.n_obs < MIN_CELLS:
         print(
-            f"WARNING: Dataset has only {adata.n_obs} cells (recommended minimum: {MIN_CELLS}). "
+            f"WARNING: Dataset has only {adata.n_obs} cells "
+            f"(recommended minimum: {MIN_CELLS}). "
             "Clustering results may not be reliable.",
             file=sys.stderr,
         )
     if adata.n_vars < MIN_GENES:
         print(
-            f"WARNING: Dataset has only {adata.n_vars} genes (recommended minimum: {MIN_GENES}). "
+            f"WARNING: Dataset has only {adata.n_vars} genes "
+            f"(recommended minimum: {MIN_GENES}). "
             "Clustering results may not be reliable.",
             file=sys.stderr,
         )
@@ -176,7 +190,8 @@ def main():
             test_file.unlink()
         except (PermissionError, OSError) as e:
             print(
-                f"ERROR: No write permission for output directory '{output_dir}': {e}",
+                f"ERROR: No write permission for output directory "
+                f"'{output_dir}': {e}",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -200,7 +215,7 @@ def main():
         )
         sys.exit(1)
 
-    # Check if leiden clustering already exists (case-insensitive) - do this early
+    # Check if leiden clustering already exists (case-insensitive)
     leiden_col = None
     if "leiden" in adata.obs.columns:
         leiden_col = "leiden"
@@ -233,14 +248,16 @@ def main():
 
     if n_vars_for_pca <= 0:
         print(
-            "WARNING: No usable features available for PCA (0 highly variable genes). "
-            "Skipping PCA and using raw expression for neighbors/clustering.",
+            "WARNING: No usable features available for PCA"
+            "(0 highly variable genes). Skipping PCA and using raw expression"
+            " for neighbors/clustering.",
             file=sys.stderr,
         )
         n_pcs_to_use = 0
     elif n_pcs_to_use <= 0:
         print(
-            "WARNING: n_pcs_to_use <= 0. Skipping PCA and using raw expression for "
+            "WARNING: n_pcs_to_use <= 0."
+            "Skipping PCA and using raw expression for "
             "neighbors/clustering.",
             file=sys.stderr,
         )
@@ -255,61 +272,47 @@ def main():
             print("  ✓ Using existing PCA from input file")
         use_pca = True
 
-    # Build neighborhood graph (required for clustering)
-    print("\nBuilding neighborhood graph...")
-    try:
-        if use_pca and n_pcs_to_use > 0:
-            sc.pp.neighbors(adata, n_neighbors=args.n_neighbors, n_pcs=n_pcs_to_use)
-        else:
-            # no PCA / no PCs to use — compute neighbors directly on the (possibly small) X
-            sc.pp.neighbors(adata, n_neighbors=args.n_neighbors)
-        print(f"  ✓ Computed neighbors (k={args.n_neighbors}, n_pcs={n_pcs_to_use})")
-    except Exception as e:
-        print(
-            f"ERROR: Failed to compute neighborhood graph: {e}\n"
-            "This typically indicates issues with PCA results or data structure.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
     # Determine if we need to run clustering
     should_cluster = leiden_col is None or args.force_recluster
 
     if should_cluster:
         if args.force_recluster and leiden_col:
             print(
-                f"\nRe-clustering (--force-recluster enabled, overwriting existing '{leiden_col}' column)..."
+                f"\nRe-clustering (--force-recluster enabled, "
+                f"overwriting existing '{leiden_col}' column)..."
             )
-        else:
-            print("\nPerforming Leiden clustering...")
 
-        # Run leiden clustering
+        # Run leiden clustering using the cluster_cells module function
         try:
-            sc.tl.leiden(adata, resolution=args.resolution)
-            leiden_col = "leiden"
-            n_clusters = len(adata.obs["leiden"].unique())
-            print(
-                f"  ✓ Identified {n_clusters} clusters (resolution={args.resolution})"
+            adata = cc.cluster_leiden(
+                adata,
+                resolution=args.resolution,
+                key_added="leiden",
+                n_neighbors=args.n_neighbors,
+                n_pcs=n_pcs_to_use,
+                show_plots=False,  # We handle plotting separately below
+                save_figures=False,
             )
+            leiden_col = "leiden"
         except ImportError as e:
             print(
-                "ERROR: Leiden clustering requires `python-igraph` and `leidenalg` "
-                "to be installed in the environment.",
+                "ERROR: Leiden clustering requires `python-igraph` and"
+                "`leidenalg` to be installed in the environment.",
                 file=sys.stderr,
             )
-            print("Install with: pip install python-igraph leidenalg", file=sys.stderr)
+            print("Install with: pip install python-igraph leidenalg",
+                  file=sys.stderr)
             print(f"Underlying error: {e}", file=sys.stderr)
             sys.exit(1)
         except Exception as e:
             print(
                 f"ERROR: Leiden clustering failed: {e}\n"
-                "This may indicate insufficient connectivity in the neighborhood graph.\n"
                 "Try adjusting n_neighbors or ensure you have enough cells.",
                 file=sys.stderr,
             )
             sys.exit(1)
     else:
-        print(f"Using existing {leiden_col} clustering from input file")
+        print(f"\nUsing existing {leiden_col} clustering from input file")
 
     # Now validate the color_by column (after clustering is done)
     color_by = cc.normalize_column_name(adata, args.color_by)
@@ -325,25 +328,28 @@ def main():
         sys.exit(1)
 
     if color_by != args.color_by:
-        print(f"Note: Using '{color_by}' column (matched from '{args.color_by}')")
+        print(f"Note: Using '{color_by}' column')")
 
     # Save clustering results to CSV
     try:
         clusters = pd.DataFrame(
-            {"cell": adata.obs_names, "cluster": adata.obs[leiden_col].astype(str)}
+            {"cell": adata.obs_names,
+             "cluster": adata.obs[leiden_col].astype(str)}
         )
         clusters.to_csv(args.out_csv, index=False)
         print(
-            f"Clustered {len(clusters)} cells into {len(set(clusters['cluster']))} clusters -> {args.out_csv}"
+            f"Clustered {len(clusters)} cells into "
+            f"{len(set(clusters['cluster']))} clusters -> {args.out_csv}"
         )
     except (PermissionError, OSError) as e:
         print(
-            f"ERROR: Failed to write clustering results to '{args.out_csv}': {e}",
-            file=sys.stderr,
+            f"ERROR: Failed to write clustering results to '{args.out_csv}':\n"
+            f"{e}", file=sys.stderr,
         )
         sys.exit(1)
     except Exception as e:
-        print(f"ERROR: Failed to create clustering dataframe: {e}", file=sys.stderr)
+        print(f"ERROR: Failed to create clustering dataframe: {e}",
+              file=sys.stderr)
         sys.exit(1)
 
     # Create outputs directory if it doesn't exist
@@ -352,7 +358,8 @@ def main():
     # Generate optional dimensionality reduction plots
     # Use legend_loc="on data" only when coloring by leiden clusters
     legend_loc = (
-        "on data" if (leiden_col and color_by.lower() == leiden_col.lower()) else None
+        "on data" if (leiden_col and color_by.lower() == leiden_col.lower())
+        else None
     )
 
     if args.pca:
@@ -396,8 +403,8 @@ def main():
         except Exception as e:
             print(
                 f"ERROR: t-SNE computation or plotting failed: {e}\n"
-                "This may indicate issues with PCA results or insufficient memory.",
-                file=sys.stderr,
+                "This may indicate issues with PCA results or insufficient"
+                " memory.", file=sys.stderr,
             )
 
     if args.umap:
@@ -421,13 +428,14 @@ def main():
         except Exception as e:
             print(
                 f"ERROR: UMAP computation or plotting failed: {e}\n"
-                "This may indicate issues with neighborhood graph or insufficient memory.",
+                "This may indicate issues with neighborhood graph.",
                 file=sys.stderr,
             )
 
-    # Always save a static UMAP plot colored by leiden for the default pipeline output
-    # Skip if user already requested UMAP with leiden coloring (case-insensitive)
-    if not (args.umap and color_by.lower() == leiden_col.lower() and args.save_figures):
+    # Always save a static UMAP plot colored by leiden as default output
+    # Skip if user requested UMAP with leiden coloring (case-insensitive)
+    if not (args.umap and color_by.lower() == leiden_col.lower()
+            and args.save_figures):
         try:
             if "X_umap" not in adata.obsm:
                 sc.tl.umap(adata)
@@ -459,7 +467,7 @@ def main():
 
             plt.close(fig)
         except Exception as e:
-            # Non-fatal: clustering results are still valid even if plotting fails
+            # Non-fatal: clustering results are valid even if plotting fails
             print(
                 f"WARNING: Default UMAP plot generation failed: {e}\n"
                 "Clustering results were still saved successfully.",
