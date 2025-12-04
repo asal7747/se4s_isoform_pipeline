@@ -1167,17 +1167,6 @@ def main():
     # (e.g., "Mrpl15-206")
     # while bulk TALON uses TALON IDs or Ensembl IDs, so we compare at the gene
     # level
-    # Skipping isoform diversity comparison (not needed)
-    # print("\nNOTE: Transcript ID formats differ between datasets:")
-    # print(f"  Bulk: TALON IDs or Ensembl")
-    # print(f"  SC: Gene-based IDs (e.g., Mrpl15-206)")
-    # print(f"  Comparing isoform diversity at the gene level...")
-    # 
-    # comparison_df = compare_isoform_diversity_h5ad(
-    #     bulk_df, sc_transcripts, common_genes, output_dir,
-    #     exclude_talon_ids=exclude_talon_ids
-    # )
-
     # Analyze transcript novelty
     novelty_col = None
     for col in ["transcript_novelty", "ISM_subtype", "novelty"]:
@@ -1232,12 +1221,6 @@ def main():
         output_dir=output_dir, top_n=5, min_expression=5
     )
 
-    # Skipping bulk vs cluster diversity comparison (not needed)
-    # bulk_vs_cluster_summary = compare_bulk_vs_cluster_isoforms(
-    #     bulk_df, sc_transcript_adata, cluster_col='SampleType',
-    #     output_dir=output_dir, exclude_talon_ids=exclude_talon_ids
-    # )
-
     # Summary report
     print("\n" + "="*60)
     print("COMPARISON SUMMARY")
@@ -1245,13 +1228,11 @@ def main():
     print(f"Bulk TALON:")
     print(f"  Genes: {len(bulk_genes)}")
     print(f"  Transcripts: {len(bulk_transcripts)}")
-    # Skipped isoform diversity metrics
     if novelty_col and novelty_counts is not None:
         print(f"  Novelty categories: {len(novelty_counts)}")
     print(f"\nSingle-cell:")
     print(f"  Genes detected: {len(sc_genes)}")
     print(f"  Transcripts detected: {len(sc_transcripts)}")
-    # Skipped isoform diversity metrics
     print(f"\nOverlap:")
     print(f"  Common genes: {len(common_genes)} "
           f"({len(common_genes)/len(bulk_genes)*100:.1f}% of bulk)")
