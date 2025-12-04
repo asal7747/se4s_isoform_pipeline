@@ -6,9 +6,8 @@ import os
 # --------------------------------------------------------------------
 
 # Input files can be provided via Snakemake `config` (e.g. --config talon_tsv=...) or
-# via environment variables (TALON_TSV, SCRNA_H5AD). If neither is provided we
-# fall back to sensible repository-relative defaults so the Snakefile is
-# functional out-of-the-box.
+# via environment variables (TALON_TSV). If neither is provided we fall back to
+# sensible repository-relative defaults so the Snakefile is functional out-of-the-box.
 TALON_TSV = (
     config.get("talon_tsv")
     if "config" in globals() and "talon_tsv" in config
@@ -17,23 +16,14 @@ TALON_TSV = (
     )
 )
 
-SCRNA_H5AD = (
-    config.get("scrna_h5ad")
-    if "config" in globals() and "scrna_h5ad" in config
-    else os.environ.get("SCRNA_H5AD", "outputs/anndata/short_shallow.h5ad")
-)
-
 OUTDIR = "outputs"
+ANNDATA = f"{OUTDIR}/anndata"
 TABLES = f"{OUTDIR}/tables"
 PLOTS = f"{OUTDIR}/plots"
+COMPARISON = f"{OUTDIR}/comparison"
 
-# Derive the stem from the short-read filename so rules that write
-# `<stem>_qc.h5ad` are consistent with the provided input file name.
-SCRNA_STEM = (
-    config.get("scrna_stem")
-    if "config" in globals() and "scrna_stem" in config
-    else Path(SCRNA_H5AD).stem
-)
+# The combined QC'd short-read file produced by single_cell_analysis.py
+COMBINED_QC_H5AD = f"{ANNDATA}/combined_short_read_qc.h5ad"
 
 # --------------------------------------------------------------------
 # FINAL TARGETS
@@ -41,32 +31,37 @@ SCRNA_STEM = (
 
 rule all:
     input:
-        f"{OUTDIR}/{SCRNA_STEM}_qc.h5ad",
+        COMBINED_QC_H5AD,
+        f"{ANNDATA}/combined_long_read_gene.h5ad",
+        f"{ANNDATA}/combined_long_read_transcript.h5ad",
         f"{TABLES}/cell_clusters.csv",
         f"{TABLES}/talon_scrna_symbol_map.csv",
         f"{TABLES}/isoform_proxies.csv",
-        f"{PLOTS}/umap_clusters.png"
+        f"{PLOTS}/umap_clusters.png",
+        f"{COMPARISON}/cluster_isoform_switching.csv"
 
 # --------------------------------------------------------------------
 # RULES
 # --------------------------------------------------------------------
 
-# 1) QC scRNA (wraps scripts/utils.py)
-rule qc_scrna:
-    input:
-        SCRNA_H5AD
+# 0) Combine and QC all datasets (wraps scripts/single_cell_analysis.py)
+#    This downloads data if needed, combines short+long read datasets,
+#    runs QC, and produces the combined h5ad files.
+rule combine_and_qc:
     output:
-        f"{OUTDIR}/{SCRNA_STEM}_qc.h5ad"
+        qc_h5ad=COMBINED_QC_H5AD,
+        long_gene=f"{ANNDATA}/combined_long_read_gene.h5ad",
+        long_transcript=f"{ANNDATA}/combined_long_read_transcript.h5ad"
     shell:
         r"""
-        mkdir -p {OUTDIR}
-        python scripts/utils.py {input} {OUTDIR}
+        mkdir -p {ANNDATA}
+        python scripts/single_cell_analysis.py
         """
 
-# 2) Cluster cells (wraps scripts/run_cluster_cells.py)
+# 1) Cluster cells (wraps scripts/run_cluster_cells.py)
 rule cluster_cells:
     input:
-        qc_h5ad=f"{OUTDIR}/{SCRNA_STEM}_qc.h5ad"
+        qc_h5ad=COMBINED_QC_H5AD
     output:
         clusters=f"{TABLES}/cell_clusters.csv",
         umap=f"{PLOTS}/umap_clusters.png"
@@ -79,11 +74,11 @@ rule cluster_cells:
           --output-dir {PLOTS}
         """
 
-# 3) Map TALON gene symbols to scRNA
+# 2) Map TALON gene symbols to scRNA
 rule symbol_map:
     input:
         talon=TALON_TSV,
-        qc_h5ad=f"{OUTDIR}/{SCRNA_STEM}_qc.h5ad"
+        qc_h5ad=COMBINED_QC_H5AD
     output:
         f"{TABLES}/talon_scrna_symbol_map.csv"
     shell:
@@ -95,11 +90,11 @@ rule symbol_map:
           {output}
         """
 
-# 4) Assign isoform proxies
+# 3) Assign isoform proxies
 rule isoform_proxies:
     input:
         talon=TALON_TSV,
-        qc_h5ad=f"{OUTDIR}/{SCRNA_STEM}_qc.h5ad",
+        qc_h5ad=COMBINED_QC_H5AD,
         clusters=f"{TABLES}/cell_clusters.csv",
         symbol_map=f"{TABLES}/talon_scrna_symbol_map.csv"
     output:
@@ -112,4 +107,20 @@ rule isoform_proxies:
           {input.clusters} \
           {input.symbol_map} \
           {output}
+        """
+
+# 4) Compare bulk and single-cell isoforms
+rule compare_bulk_sc:
+    input:
+        talon=TALON_TSV,
+        long_gene=f"{ANNDATA}/combined_long_read_gene.h5ad",
+        long_transcript=f"{ANNDATA}/combined_long_read_transcript.h5ad"
+    output:
+        f"{COMPARISON}/cluster_isoform_switching.csv"
+    shell:
+        r"""
+        mkdir -p {COMPARISON}
+        python scripts/compare_bulk_sc.py \
+          --bulk-talon {input.talon} \
+          --output {COMPARISON}
         """

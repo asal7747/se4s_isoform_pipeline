@@ -16,21 +16,18 @@ A reproducible Python pipeline to bridge short-read single-cell RNA-seq with lon
 
 ## Install
 
-Install the core Python package (TALON utilities) in a virtual environment:
+Create and activate a virtual environment, then install the package and its dependencies:
 
 ```
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
+pip install scanpy anndata numpy pandas matplotlib scikit-learn pytest
 ```
 
-Create or activate a conda/mamba environment for the short-read pipeline (example):
-
-- Python 3.12
-- scanpy, anndata, numpy, pandas, matplotlib, scikit-learn, pytest
-- snakemake (optional, for the Snakefile workflow)
+Optionally, install Snakemake if you want to use the Snakefile workflow:
 
 ```
-mamba activate se4s_isoform_env
+pip install snakemake
 ```
 
 ---
@@ -63,87 +60,86 @@ write_isoform_qc_table("/path/to/bulk_sc_talon_read_annot.tsv", "outputs/tables"
 
 ### 2. Short-read QC, clustering, mapping, proxies
 
+These individual scripts are useful for custom workflows. For most users, we recommend using the **one-shot pipeline** below instead.
+
 Download ENCODE .h5ad files (once):
 
 ```
-bash scripts/download_single_cell_data.sh outputs/anndata
+bash scripts/download_single_cell_data.sh data
 ```
 
-QC a short-read dataset:
-
-```
-python scripts/utils.py outputs/anndata/short_shallow.h5ad outputs
-# -> outputs/short_shallow_qc.h5ad
-```
-
-Cluster cells (PCA + neighbors + Leiden) and write a UMAP:
-
-```
-python scripts/run_cluster_cells.py outputs/short_shallow_qc.h5ad \
-  outputs/tables/cell_clusters.csv --output-dir outputs/plots
-# -> outputs/plots/umap_clusters.png
-```
-
-Map TALON gene symbols to scRNA:
-
-```
-python scripts/map_ids_by_symbol.py /path/to/bulk_sc_talon_read_annot.tsv \
-  outputs/short_shallow_qc.h5ad outputs/tables/talon_scrna_symbol_map.csv
-```
-
-Assign isoform proxies (cluster, gene -> top TALON transcript):
-
-```
-python scripts/assign_isoform_proxies.py /path/to/bulk_sc_talon_read_annot.tsv \
-  outputs/short_shallow_qc.h5ad outputs/tables/cell_clusters.csv \
-  outputs/tables/talon_scrna_symbol_map.csv outputs/tables/isoform_proxies.csv
-```
-
-Optional: benchmark isoform diversity (TALON vs proxy isoforms per gene):
-
-```
-python scripts/benchmark_isoform_diversity.py /path/to/bulk_sc_talon_read_annot.tsv \
-  outputs/tables/isoform_proxies.csv outputs/tables/isoform_diversity_benchmark.csv
-```
+The remaining steps require combined data with proper gene symbols. See the one-shot pipeline section for the recommended approach.
 
 ---
 
 ## One-shot pipeline (Python driver)
 
-To run QC -> clustering -> mapping -> isoform proxies in one command:
+**This is the recommended way to run the pipeline.**
+
+### Option 1: Auto-download and combine (2 arguments)
+
+To run the full pipeline with automatic data download:
 
 ```
-python scripts/run_full_pipeline.py /path/to/bulk_sc_talon_read_annot.tsv \
-  outputs/anndata/short_shallow.h5ad outputs/
+python scripts/run_full_pipeline.py /path/to/bulk_sc_talon_read_annot.tsv outputs/
 ```
+
+This will:
+- Download ENCODE .h5ad files to `data/` if not present
+- Combine short+long read datasets
+- Run QC, clustering, mapping, and proxy assignment
+- Run bulk vs single-cell comparison
+
+### Option 2: Use your own h5ad (3 arguments)
+
+To run with a specific scRNA .h5ad file you already have:
+
+```
+python scripts/run_full_pipeline.py /path/to/bulk_sc_talon_read_annot.tsv /path/to/your_scrna.h5ad outputs/
+```
+
+This will:
+- Run QC on your provided h5ad
+- Run clustering, mapping, and proxy assignment
+- Skip download/combine and comparison steps
+
+Replace the paths with your actual file locations.
 
 Outputs go under `outputs/`:
 
-- `outputs/short_shallow_qc.h5ad`
-- `outputs/tables/` (clusters, symbol map, proxies, summaries)
+- `outputs/anndata/combined_short_read_qc.h5ad` (QC'd combined short-read data)
+- `outputs/tables/cell_clusters.csv`
+- `outputs/tables/talon_scrna_symbol_map.csv`
+- `outputs/tables/isoform_proxies.csv`
 - `outputs/plots/umap_clusters.png`
+- `outputs/comparison/` (bulk vs single-cell comparison results)
 
 ---
 
 ## Snakemake workflow (optional)
 
-The same DAG is encoded in `Snakefile`. With Snakemake installed in your environment:
+The same DAG is encoded in `Snakefile`. **Unlike the Python driver, Snakemake does NOT auto-download data.** You must first download ENCODE files:
 
 ```
-snakemake -j 1
+bash scripts/download_single_cell_data.sh data
 ```
 
-By default, this will:
+Then run with Snakemake installed:
 
-- Take `outputs/anndata/short_shallow.h5ad` and `/path/to/bulk_sc_talon_read_annot.tsv` as inputs.
-- Run:
-  - `scripts/utils.py` (QC)
-  - `scripts/run_cluster_cells.py` (clustering + UMAP)
-  - `scripts/map_ids_by_symbol.py` (symbol mapping)
-  - `scripts/assign_isoform_proxies.py` (proxy assignment)
-- Produce the same outputs under `outputs/` as `run_full_pipeline.py`.
+```
+snakemake -j 1 --config talon_tsv=/path/to/bulk_sc_talon_read_annot.tsv
+```
 
-You can edit the paths at the top of `Snakefile` to point to different TALON/scRNA inputs.
+Replace `/path/to/bulk_sc_talon_read_annot.tsv` with the actual path to your TALON TSV file.
+
+The workflow will:
+1. Combine short+long read datasets via `single_cell_analysis.py`
+2. Cluster cells and generate UMAP
+3. Map TALON gene symbols to scRNA
+4. Assign isoform proxies
+5. Compare bulk vs single-cell isoforms
+
+Outputs are the same as `run_full_pipeline.py`.
 
 ---
 
