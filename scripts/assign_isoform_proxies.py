@@ -149,6 +149,12 @@ def main():
 
     # 4) Assign top TALON transcript by read_count for expressed genes per cluster
     tx_counts_sym = tx_counts[tx_counts["annot_gene_name"].isin(shared_symbols)]
+    
+    # Pre-index transcripts by gene for O(1) lookup instead of O(n) filtering
+    # Sort by read_count descending, then group by gene and take first (top) row
+    tx_counts_sorted = tx_counts_sym.sort_values("read_count", ascending=False)
+    tx_by_gene = tx_counts_sorted.groupby("annot_gene_name").first()
+    
     proxies = []
     for cluster_id in cluster_expr.index:
         row = cluster_expr.loc[cluster_id]
@@ -156,10 +162,9 @@ def main():
         if expressed.empty:
             continue
         for gene, mean_expr in expressed.items():
-            gene_txs = tx_counts_sym[tx_counts_sym["annot_gene_name"] == gene]
-            if gene_txs.empty:
+            if gene not in tx_by_gene.index:
                 continue
-            top_tx = gene_txs.sort_values("read_count", ascending=False).iloc[0]
+            top_tx = tx_by_gene.loc[gene]
             proxies.append(
                 {
                     "cluster": cluster_id,
