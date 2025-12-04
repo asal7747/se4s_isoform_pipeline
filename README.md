@@ -14,6 +14,24 @@ A reproducible Python pipeline to bridge short-read single-cell RNA-seq with lon
 
 ---
 
+## Requirements
+
+- **Python 3.10, 3.11, 3.12, or 3.13** (Python 3.14+ is not yet supported due to numba/scanpy compatibility)
+
+Check your Python version:
+
+```
+python3 --version
+```
+
+If you have Python 3.14+, you'll need to create the virtual environment with an older Python. Tools like [pyenv](https://github.com/pyenv/pyenv) (macOS/Linux) or the [Python installer](https://www.python.org/downloads/) (Windows) can install multiple Python versions side-by-side. Then create the venv with the specific version:
+
+```
+python3.13 -m venv .venv && source .venv/bin/activate
+```
+
+---
+
 ## Install
 
 Create and activate a virtual environment, then install the package and its dependencies:
@@ -21,7 +39,7 @@ Create and activate a virtual environment, then install the package and its depe
 ```
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
-pip install scanpy anndata numpy pandas matplotlib scikit-learn pytest
+pip install scanpy anndata numpy pandas matplotlib scikit-learn pytest python-igraph leidenalg
 ```
 
 Optionally, install Snakemake if you want to use the Snakefile workflow:
@@ -157,6 +175,19 @@ Functional shell tests (using `ssshtest`) live under `tests/func/` and exercise:
 - `scripts/run_full_pipeline.py` on small TALON + scRNA test data.
 
 Large TALON-dependent smoke tests are skipped automatically if the big TSV/log are not present.
+
+---
+
+## Troubleshooting
+
+**Error: "Cannot install on Python version 3.14.0"**
+- Numba (required by scanpy) doesn't support Python 3.14 yet. Create the virtual environment with Python 3.13 or earlier (see Requirements section).
+
+**Error: "Leiden clustering requires `python-igraph`"**
+- Install missing clustering dependencies:
+  ```
+  pip install python-igraph leidenalg
+  ```
 
 ---
 
