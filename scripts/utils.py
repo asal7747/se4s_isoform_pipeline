@@ -256,7 +256,8 @@ def qc_and_filter(
     print("After cell filters: \n", adata)
 
     # next, remove genes whose expression level is considered "undetectable"
-    # we define a gene as detectable if at least two cells contain more than 5 reads from the gene
+    # we define a gene as detectable if
+    # at least two cells contain more than 5 reads from the gene
     # but the threshold strongly depends on the sequencing depth
     # filter genes
     # e.g. set the threshold to be at least 2 cells with at least 5 reads
@@ -293,7 +294,8 @@ def qc_and_filter(
         sc.pl.scatter(adata, x="total_counts", y="pct_counts_mt")
         sc.pl.scatter(adata, x="total_counts", y="n_genes_by_counts")
 
-    # additional hard filters to remove potential outliers (these thresholds can be adjusted)
+    # additional hard filters to remove potential outliers
+    # (these thresholds can be adjusted)
     # For very small datasets (e.g. unit tests / synthetic), skip these filters
     # to avoid dropping all cells/genes. Use conservative thresholds recommended
     # elsewhere in the project: at least 50 cells and 100 genes.
@@ -305,12 +307,21 @@ def qc_and_filter(
     print("After additional hard filters: \n", adata)
 
     # save the QC'ed anndata object
-    ica_path = Path(output_dir)
-    ica_path.mkdir(parents=True, exist_ok=True)
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
 
-    # Use dataset_name from uns if available, otherwise use a default name
+    # Use dataset_name from uns if available, otherwise fall back to a
+    # generic name. This restores previous behavior where output files
+    # were dataset-specific (e.g., combined_short_read_qc.h5ad).
     dataset_name = adata.uns.get("dataset_name", "combined_dataset")
-    qc_h5ad_path = ica_path / f"{dataset_name}_qc.h5ad"
+    qc_h5ad_path = output_path / f"{dataset_name}_qc.h5ad"
+
+    if qc_h5ad_path.exists() and qc_h5ad_path.is_dir():
+        raise RuntimeError(
+            f"{qc_h5ad_path} exists as a directory; expected a file. "
+            "Please remove or rename that directory and rerun."
+        )
+
     adata.write(qc_h5ad_path)
     print(f"QC'ed AnnData saved to: {qc_h5ad_path}")
 
@@ -435,7 +446,9 @@ def load_and_combine_short_reads(
 
     # Concatenate into single AnnData
     # Use merge='same' to preserve var metadata that is the same across all datasets
-    combined_adata = anndata.concat(list(short_read_datasets.values()), axis=0, merge='same')
+    combined_adata = anndata.concat(
+        list(short_read_datasets.values()), axis=0, merge="same"
+    )
 
     # Add dataset name to uns for later use (e.g., in QC output filenames)
     combined_adata.uns["dataset_name"] = "combined_short_read"
@@ -454,7 +467,8 @@ def load_and_combine_short_reads(
 def main():
     if len(sys.argv) < 3:
         print(
-            "Usage: utils.py <input.h5ad> <output_dir> [min_counts=1000] [min_genes=750]",
+            "Usage: utils.py <input.h5ad> <output_dir> "
+            "[min_counts=1000] [min_genes=750]",
             file=sys.stderr,
         )
         sys.exit(2)

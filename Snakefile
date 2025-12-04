@@ -1,19 +1,39 @@
 from pathlib import Path
+import os
 
 # --------------------------------------------------------------------
 # CONFIG
 # --------------------------------------------------------------------
 
-# Real input files
-TALON_TSV = "/Users/asheralbrecht/Desktop/bulk_sc_talon_read_annot.tsv"
-SCRNA_H5AD = "outputs/anndata/short_shallow.h5ad"  # adjust if your raw ENCODE file has a different name
+# Input files can be provided via Snakemake `config` (e.g. --config talon_tsv=...) or
+# via environment variables (TALON_TSV, SCRNA_H5AD). If neither is provided we
+# fall back to sensible repository-relative defaults so the Snakefile is
+# functional out-of-the-box.
+TALON_TSV = (
+    config.get("talon_tsv")
+    if "config" in globals() and "talon_tsv" in config
+    else os.environ.get(
+        "TALON_TSV", "data/bulk_sc_talon_read_annot.tsv"
+    )
+)
+
+SCRNA_H5AD = (
+    config.get("scrna_h5ad")
+    if "config" in globals() and "scrna_h5ad" in config
+    else os.environ.get("SCRNA_H5AD", "outputs/anndata/short_shallow.h5ad")
+)
 
 OUTDIR = "outputs"
 TABLES = f"{OUTDIR}/tables"
 PLOTS = f"{OUTDIR}/plots"
 
-# Stem of the raw scRNA file (short_shallow.h5ad -> short_shallow_qc.h5ad)
-SCRNA_STEM = "short_shallow"
+# Derive the stem from the short-read filename so rules that write
+# `<stem>_qc.h5ad` are consistent with the provided input file name.
+SCRNA_STEM = (
+    config.get("scrna_stem")
+    if "config" in globals() and "scrna_stem" in config
+    else Path(SCRNA_H5AD).stem
+)
 
 # --------------------------------------------------------------------
 # FINAL TARGETS

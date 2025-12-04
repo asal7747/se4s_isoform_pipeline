@@ -17,7 +17,8 @@ import pandas as pd
 def main():
     if len(sys.argv) < 4:
         print(
-            "Usage: benchmark_isoform_diversity.py <talon_tsv> <isoform_proxies_csv> <out_csv>",
+            "Usage: benchmark_isoform_diversity.py "
+            "<talon_tsv> <isoform_proxies_csv> <out_csv>",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -51,7 +52,8 @@ def main():
     proxies = pd.read_csv(proxies_path)
     if not {"gene", "proxy_transcript"}.issubset(proxies.columns):
         print(
-            "ERROR: isoform_proxies CSV must have columns 'gene' and 'proxy_transcript'.",
+            "ERROR: isoform_proxies CSV must have columns "
+            "'gene' and 'proxy_transcript'.",
             file=sys.stderr,
         )
         sys.exit(1)

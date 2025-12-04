@@ -15,12 +15,9 @@ This will:
   6) Compare bulk vs single-cell isoforms
 """
 
-import os
+import subprocess
 import sys
 from pathlib import Path
-
-import subprocess
-
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
@@ -32,8 +29,7 @@ def run(cmd: list[str]) -> None:
     result = subprocess.run(cmd)
     if result.returncode != 0:
         print(
-            f"[run_full_pipeline] ERROR: command failed with "
-            f"code {result.returncode}"
+            f"[run_full_pipeline] ERROR: command failed with code {result.returncode}"
         )
         sys.exit(result.returncode)
 
@@ -74,10 +70,8 @@ def main():
         "long_myotube_transcript.h5ad",
         "long_myotube_gene.h5ad",
     ]
-    
-    missing_files = [f for f in required_files 
-                     if not (data_dir / f).is_file()]
-    
+    missing_files = [f for f in required_files if not (data_dir / f).is_file()]
+
     if missing_files:
         print(
             f"[run_full_pipeline] Missing {len(missing_files)} data files. "
@@ -99,12 +93,9 @@ def main():
     # This creates outputs/anndata/combined_short_read_qc.h5ad
     qc_h5ad = REPO_ROOT / "outputs" / "anndata" / "combined_short_read_qc.h5ad"
     if not qc_h5ad.is_file():
-        print(
-            f"ERROR: Combined QC file not created: {qc_h5ad}",
-            file=sys.stderr
-        )
-        sys.exit(1)    
-    
+        print(f"ERROR: Combined QC file not created: {qc_h5ad}", file=sys.stderr)
+        sys.exit(1)
+
     # 2) Cluster cells
     clusters_csv = outdir / "tables" / "cell_clusters.csv"
     plots_dir = outdir / "plots"

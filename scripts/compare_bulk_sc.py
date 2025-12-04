@@ -32,7 +32,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scanpy as sc
 
 # Import from local utils
 try:
@@ -40,13 +39,14 @@ try:
 except ImportError:
     # Try relative import if running as a script
     import sys
+
     try:
         script_dir = Path(__file__).parent
     except NameError:
         # __file__ not defined in interactive mode, use cwd
         script_dir = Path.cwd() / "scripts"
     sys.path.insert(0, str(script_dir))
-    from utils import get_anndata, load_long_read_datasets
+    from utils import get_anndata
 
 
 def load_talon_data(talon_path, min_reads=5):
@@ -70,8 +70,9 @@ def load_talon_data(talon_path, min_reads=5):
     return df
 
 
-def extract_gene_set_from_talon(talon_df, dataset_label="dataset",
-                                exclude_talon_ids=True):
+def extract_gene_set_from_talon(
+    talon_df, dataset_label="dataset", exclude_talon_ids=True
+):
     """Extract unique genes, transcripts, and transcript names from TALON df.
 
     Args:
@@ -83,8 +84,7 @@ def extract_gene_set_from_talon(talon_df, dataset_label="dataset",
     # Extract genes, optionally filtering TALON-generated gene names
     all_genes = set(talon_df["annot_gene_name"].dropna().unique())
     if exclude_talon_ids:
-        genes = {gene for gene in all_genes if not
-                 str(gene).startswith('TALON')}
+        genes = {gene for gene in all_genes if not str(gene).startswith("TALON")}
         excluded_genes = len(all_genes) - len(genes)
     else:
         genes = all_genes
@@ -100,26 +100,31 @@ def extract_gene_set_from_talon(talon_df, dataset_label="dataset",
 
             if exclude_talon_ids:
                 # Filter out names that start with 'TALON'
-                transcript_names = {name for name in all_names if not
-                                    str(name).startswith('TALON')}
+                transcript_names = {
+                    name for name in all_names if not str(name).startswith("TALON")
+                }
                 excluded_count = len(all_names) - len(transcript_names)
-                print(f"{dataset_label}: "
-                      f"{len(genes)} genes ({excluded_genes} TALON genes "
-                      f"excluded), {len(transcripts)} transcripts")
-                print(f"{len(all_names)} total transcript names "
-                      f"({excluded_count} TALON IDs excluded)")
-                print(f"{len(transcript_names)} annotated transcript names "
-                      f"(non-TALON)")
+                print(
+                    f"{dataset_label}: "
+                    f"{len(genes)} genes ({excluded_genes} TALON genes "
+                    f"excluded), {len(transcripts)} transcripts"
+                )
+                print(
+                    f"{len(all_names)} total transcript names "
+                    f"({excluded_count} TALON IDs excluded)"
+                )
+                print(f"{len(transcript_names)} annotated transcript names (non-TALON)")
             else:
                 transcript_names = all_names
-                print(f"{dataset_label}: {len(genes)} genes, "
-                      f"{len(transcripts)} transcripts, "
-                      f"{len(transcript_names)} transcript names")
+                print(
+                    f"{dataset_label}: {len(genes)} genes, "
+                    f"{len(transcripts)} transcripts, "
+                    f"{len(transcript_names)} transcript names"
+                )
 
             return genes, transcripts, transcript_names
 
-    print(f"{dataset_label}: {len(genes)} genes, "
-          f"{len(transcripts)} transcripts")
+    print(f"{dataset_label}: {len(genes)} genes, {len(transcripts)} transcripts")
     return genes, transcripts, None
 
 
@@ -163,23 +168,23 @@ def extract_transcript_set_from_h5ad(adata, dataset_label="dataset"):
         genes = set()
         for tid in transcripts:
             # Split on hyphen and take the gene name part
-            if '-' in str(tid):
-                gene_name = str(tid).rsplit('-', 1)[0]
+            if "-" in str(tid):
+                gene_name = str(tid).rsplit("-", 1)[0]
                 genes.add(gene_name)
 
         if genes:
-            print(f"NOTE: Extracted gene names from transcript IDs "
-                  f"(format: GeneName-IsoformNumber)")
+            print(
+                "NOTE: Extracted gene names from transcript IDs "
+                "(format: GeneName-IsoformNumber)"
+            )
 
-    print(f"{dataset_label}: {len(transcripts)} transcripts from "
-          f"{adata.n_obs} cells")
+    print(f"{dataset_label}: {len(transcripts)} transcripts from {adata.n_obs} cells")
     if genes:
         print(f"Associated with {len(genes)} genes")
 
     # Check for novelty information
     novelty_col = None
-    for col in ["transcript_novelty", "ISM_subtype", "novelty",
-                "transcript_status"]:
+    for col in ["transcript_novelty", "ISM_subtype", "novelty", "transcript_status"]:
         if col in adata.var.columns:
             novelty_col = col
             print(f"    ✓ Found novelty column: '{col}'")
@@ -189,7 +194,7 @@ def extract_transcript_set_from_h5ad(adata, dataset_label="dataset"):
             break
 
     if novelty_col is None:
-        print(f"    ✗ No transcript novelty information found")
+        print("    ✗ No transcript novelty information found")
         print(f"      Available columns: {list(adata.var.columns)[:10]}")
 
     return transcripts, genes, adata.var
@@ -211,32 +216,38 @@ def compare_gene_overlap(bulk_genes, sc_genes, output_dir):
     # Create comparison plot
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    categories = ['Both\ndatasets', 'Bulk\nonly', 'Single-cell\nonly']
+    categories = ["Both\ndatasets", "Bulk\nonly", "Single-cell\nonly"]
     counts = [len(overlap), len(bulk_only), len(sc_only)]
-    colors = ['#2ecc71', '#e74c3c', '#3498db']
+    colors = ["#2ecc71", "#e74c3c", "#3498db"]
 
-    ax.bar(categories, counts, color=colors, alpha=0.7, edgecolor='black')
-    ax.set_ylabel('Number of genes', fontsize=12)
-    ax.set_title('Gene Overlap: Bulk vs. Single-Cell Long-read', fontsize=14,
-                 fontweight='bold')
-    ax.grid(axis='y', alpha=0.3)
+    ax.bar(categories, counts, color=colors, alpha=0.7, edgecolor="black")
+    ax.set_ylabel("Number of genes", fontsize=12)
+    ax.set_title(
+        "Gene Overlap: Bulk vs. Single-Cell Long-read", fontsize=14, fontweight="bold"
+    )
+    ax.grid(axis="y", alpha=0.3)
 
     # Add count labels on bars
     for i, (cat, count) in enumerate(zip(categories, counts)):
-        ax.text(i, count + max(counts)*0.02, str(count),
-                ha='center', va='bottom', fontsize=11, fontweight='bold')
+        ax.text(
+            i,
+            count + max(counts) * 0.02,
+            str(count),
+            ha="center",
+            va="bottom",
+            fontsize=11,
+            fontweight="bold",
+        )
 
     plt.tight_layout()
-    plt.savefig(output_dir / "gene_overlap.png", dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / "gene_overlap.png", dpi=300, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_dir / 'gene_overlap.png'}")
 
     return overlap
 
 
-def compare_transcript_overlap(bulk_transcript_names,
-                               sc_transcript_ids,
-                               output_dir):
+def compare_transcript_overlap(bulk_transcript_names, sc_transcript_ids, output_dir):
     """Compare transcript name overlap between bulk and single-cell datasets.
 
     Args:
@@ -257,49 +268,64 @@ def compare_transcript_overlap(bulk_transcript_names,
     print(f"  Bulk only: {len(bulk_only)}")
     print(f"  Single-cell only: {len(sc_only)}")
     if len(bulk_transcript_names | sc_transcript_ids) > 0:
-        print(f"  Jaccard index: {len(overlap) / len(bulk_transcript_names |
-                                                     sc_transcript_ids):.3f}")
+        print(
+            f"  Jaccard index: {
+                len(overlap) / len(bulk_transcript_names | sc_transcript_ids):.3f}"
+        )
 
     # Create comparison plot
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    categories = ['Both\ndatasets', 'Bulk\nonly', 'Single-cell\nonly']
+    categories = ["Both\ndatasets", "Bulk\nonly", "Single-cell\nonly"]
     counts = [len(overlap), len(bulk_only), len(sc_only)]
-    colors = ['#9b59b6', '#e74c3c', '#3498db']
+    colors = ["#9b59b6", "#e74c3c", "#3498db"]
 
-    ax.bar(categories, counts, color=colors, alpha=0.7, edgecolor='black')
-    ax.set_ylabel('Number of transcripts', fontsize=12)
-    ax.set_title('Transcript Name Overlap: Bulk vs. Single-Cell Long-read',
-                 fontsize=14, fontweight='bold')
-    ax.grid(axis='y', alpha=0.3)
+    ax.bar(categories, counts, color=colors, alpha=0.7, edgecolor="black")
+    ax.set_ylabel("Number of transcripts", fontsize=12)
+    ax.set_title(
+        "Transcript Name Overlap: Bulk vs. Single-Cell Long-read",
+        fontsize=14,
+        fontweight="bold",
+    )
+    ax.grid(axis="y", alpha=0.3)
 
     # Add count labels on bars
     for i, (cat, count) in enumerate(zip(categories, counts)):
-        ax.text(i, count + max(counts)*0.02 if max(counts) > 0 else 1,
-                str(count), ha='center', va='bottom', fontsize=11,
-                fontweight='bold')
+        ax.text(
+            i,
+            count + max(counts) * 0.02 if max(counts) > 0 else 1,
+            str(count),
+            ha="center",
+            va="bottom",
+            fontsize=11,
+            fontweight="bold",
+        )
 
     # Add percentage labels
     total = len(bulk_transcript_names | sc_transcript_ids)
     if total > 0:
         for i, count in enumerate(counts):
             pct = count / total * 100
-            ax.text(i, count/2, f'{pct:.1f}%',
-                    ha='center', va='center', fontsize=10, fontweight='bold',
-                    color='white')
+            ax.text(
+                i,
+                count / 2,
+                f"{pct:.1f}%",
+                ha="center",
+                va="center",
+                fontsize=10,
+                fontweight="bold",
+                color="white",
+            )
 
     plt.tight_layout()
-    plt.savefig(output_dir / "transcript_overlap.png", dpi=300,
-                bbox_inches='tight')
+    plt.savefig(output_dir / "transcript_overlap.png", dpi=300, bbox_inches="tight")
     plt.close()
     print(f"  Saved: {output_dir / 'transcript_overlap.png'}")
 
     return overlap
 
 
-def compare_transcript_names(bulk_transcript_names,
-                             sc_transcript_ids,
-                             bulk_df=None):
+def compare_transcript_names(bulk_transcript_names, sc_transcript_ids, bulk_df=None):
     """Compare transcript names between bulk and SC, trying to find matches.
 
     Args:
@@ -318,10 +344,14 @@ def compare_transcript_names(bulk_transcript_names,
         return set(), set()
 
     # Debug: show types and sizes
-    print(f"  Bulk transcript names: {len(bulk_transcript_names)} items, "
-          f"type: {type(bulk_transcript_names)}")
-    print(f"  SC transcript IDs: {len(sc_transcript_ids)} items, type: "
-          f"{type(sc_transcript_ids)}")
+    print(
+        f"  Bulk transcript names: {len(bulk_transcript_names)} items, "
+        f"type: {type(bulk_transcript_names)}"
+    )
+    print(
+        f"  SC transcript IDs: {len(sc_transcript_ids)} items, type: "
+        f"{type(sc_transcript_ids)}"
+    )
 
     # Try exact matches
     exact_matches = bulk_transcript_names & sc_transcript_ids
@@ -338,17 +368,17 @@ def compare_transcript_names(bulk_transcript_names,
     for name in bulk_transcript_names:
         # Try to extract gene name (common formats:
         # GeneName-IsoformNum, GeneName.IsoformNum)
-        if '-' in str(name):
-            gene = str(name).rsplit('-', 1)[0]
+        if "-" in str(name):
+            gene = str(name).rsplit("-", 1)[0]
             bulk_genes_from_names.add(gene)
-        elif '.' in str(name):
-            gene = str(name).rsplit('.', 1)[0]
+        elif "." in str(name):
+            gene = str(name).rsplit(".", 1)[0]
             bulk_genes_from_names.add(gene)
 
     sc_genes_from_ids = set()
     for tid in sc_transcript_ids:
-        if '-' in str(tid):
-            gene = str(tid).rsplit('-', 1)[0]
+        if "-" in str(tid):
+            gene = str(tid).rsplit("-", 1)[0]
             sc_genes_from_ids.add(gene)
 
     gene_overlap = bulk_genes_from_names & sc_genes_from_ids
@@ -357,18 +387,15 @@ def compare_transcript_names(bulk_transcript_names,
         print(f"    Examples: {list(gene_overlap)[:10]}")
 
     # Show examples of bulk transcript names
-    print(f"\n  Sample bulk transcript names: "
-          f"{list(bulk_transcript_names)[:10]}")
+    print(f"\n  Sample bulk transcript names: {list(bulk_transcript_names)[:10]}")
     print(f"  Sample SC transcript IDs: {list(sc_transcript_ids)[:10]}")
 
     return exact_matches, gene_overlap
 
 
-def compare_isoform_diversity_h5ad(bulk_df,
-                                   sc_transcript_ids,
-                                   common_genes,
-                                   output_dir,
-                                   exclude_talon_ids=True):
+def compare_isoform_diversity_h5ad(
+    bulk_df, sc_transcript_ids, common_genes, output_dir, exclude_talon_ids=True
+):
     """Compare isoform diversity between bulk TALON and single-cell data.
 
     Args:
@@ -390,71 +417,82 @@ def compare_isoform_diversity_h5ad(bulk_df,
         # Filter to only annotated transcripts and genes
         # (not starting with TALON)
         bulk_annotated = bulk_common[
-            (~bulk_common["annot_transcript_name"]
-             .str.startswith("TALON", na=False)) &
-            (~bulk_common["annot_gene_name"]
-             .str.startswith("TALON", na=False))
+            (~bulk_common["annot_transcript_name"].str.startswith("TALON", na=False))
+            & (~bulk_common["annot_gene_name"].str.startswith("TALON", na=False))
         ]
-        bulk_isoforms = (bulk_annotated.groupby("annot_gene_name")
-                         ["annot_transcript_name"].nunique())
-        print(f"  Note: Using annotated genes and transcript names only "
-              f"(excluding TALON IDs)")
+        bulk_isoforms = bulk_annotated.groupby("annot_gene_name")[
+            "annot_transcript_name"
+        ].nunique()
+        print(
+            "  Note: Using annotated genes and transcript names only "
+            "(excluding TALON IDs)"
+        )
         print(f"    Bulk transcripts before filtering: {len(bulk_common)}")
         print(f"    Bulk transcripts after filtering: {len(bulk_annotated)}")
     else:
-        bulk_isoforms = (bulk_common.groupby("annot_gene_name")
-                         ["annot_transcript_id"].nunique())
+        bulk_isoforms = bulk_common.groupby("annot_gene_name")[
+            "annot_transcript_id"
+        ].nunique()
 
     # Count isoforms per gene in SC by parsing transcript IDs
     sc_gene_isoforms = {}
     for tid in sc_transcript_ids:
-        if '-' in str(tid):
-            gene_name = str(tid).rsplit('-', 1)[0]
+        if "-" in str(tid):
+            gene_name = str(tid).rsplit("-", 1)[0]
             if gene_name in common_genes:
-                sc_gene_isoforms[gene_name] = (
-                    sc_gene_isoforms.get(gene_name, 0) + 1
-                )
+                sc_gene_isoforms[gene_name] = sc_gene_isoforms.get(gene_name, 0) + 1
 
     sc_isoforms = pd.Series(sc_gene_isoforms)
 
-    print(f"\n  Bulk dataset:")
+    print("\n  Bulk dataset:")
     print(f"    Mean isoforms per gene: {bulk_isoforms.mean():.2f}")
     print(f"    Median isoforms per gene: {bulk_isoforms.median():.0f}")
     print(f"    Max isoforms per gene: {bulk_isoforms.max()}")
 
-    print(f"\n  Single-cell dataset:")
+    print("\n  Single-cell dataset:")
     print(f"    Mean isoforms per gene: {sc_isoforms.mean():.2f}")
     print(f"    Median isoforms per gene: {sc_isoforms.median():.0f}")
     print(f"    Max isoforms per gene: {sc_isoforms.max()}")
 
     # Create comparison DataFrame
-    comparison = pd.DataFrame({
-        'gene': list(set(bulk_isoforms.index) | set(sc_isoforms.index)),
-    })
-    comparison['bulk_isoforms'] = (
-        comparison['gene'].map(bulk_isoforms).fillna(0).astype(int)
+    comparison = pd.DataFrame(
+        {
+            "gene": list(set(bulk_isoforms.index) | set(sc_isoforms.index)),
+        }
     )
-    comparison['sc_isoforms'] = (
-        comparison['gene'].map(sc_isoforms).fillna(0).astype(int)
+    comparison["bulk_isoforms"] = (
+        comparison["gene"].map(bulk_isoforms).fillna(0).astype(int)
     )
-    comparison['difference'] = (
-        comparison['bulk_isoforms'] - comparison['sc_isoforms']
+    comparison["sc_isoforms"] = (
+        comparison["gene"].map(sc_isoforms).fillna(0).astype(int)
     )
-    comparison = comparison.sort_values('bulk_isoforms', ascending=False)
+    comparison["difference"] = comparison["bulk_isoforms"] - comparison["sc_isoforms"]
+    comparison = comparison.sort_values("bulk_isoforms", ascending=False)
 
     # Plot comparison
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
     # 1. Histogram comparison
     ax1 = axes[0, 0]
-    ax1.hist(bulk_isoforms, bins=30, alpha=0.6,
-             label='Bulk', color='#e74c3c', edgecolor='black')
-    ax1.hist(sc_isoforms, bins=30, alpha=0.6,
-             label='Single-cell', color='#3498db', edgecolor='black')
-    ax1.set_xlabel('Number of isoforms per gene', fontsize=11)
-    ax1.set_ylabel('Number of genes', fontsize=11)
-    ax1.set_title('Isoform Diversity Distribution',
-                  fontsize=12, fontweight='bold')
+    ax1.hist(
+        bulk_isoforms,
+        bins=30,
+        alpha=0.6,
+        label="Bulk",
+        color="#e74c3c",
+        edgecolor="black",
+    )
+    ax1.hist(
+        sc_isoforms,
+        bins=30,
+        alpha=0.6,
+        label="Single-cell",
+        color="#3498db",
+        edgecolor="black",
+    )
+    ax1.set_xlabel("Number of isoforms per gene", fontsize=11)
+    ax1.set_ylabel("Number of genes", fontsize=11)
+    ax1.set_title("Isoform Diversity Distribution", fontsize=12, fontweight="bold")
     ax1.legend()
     ax1.grid(alpha=0.3)
 
@@ -464,56 +502,52 @@ def compare_isoform_diversity_h5ad(bulk_df,
     bulk_vals = [bulk_isoforms.get(g, 0) for g in genes_both]
     sc_vals = [sc_isoforms.get(g, 0) for g in genes_both]
 
-    ax2.scatter(bulk_vals, sc_vals, alpha=0.5, s=30, color='#9b59b6')
-    max_val = max(max(bulk_vals) if bulk_vals else 1,
-                  max(sc_vals) if sc_vals else 1)
-    ax2.plot([0, max_val], [0, max_val], 'k--', linewidth=1, alpha=0.5,
-             label='y=x')
-    ax2.set_xlabel('Bulk isoforms per gene', fontsize=11)
-    ax2.set_ylabel('Single-cell isoforms per gene', fontsize=11)
-    ax2.set_title('Isoform Count Correlation', fontsize=12, fontweight='bold')
+    ax2.scatter(bulk_vals, sc_vals, alpha=0.5, s=30, color="#9b59b6")
+    max_val = max(max(bulk_vals) if bulk_vals else 1, max(sc_vals) if sc_vals else 1)
+    ax2.plot([0, max_val], [0, max_val], "k--", linewidth=1, alpha=0.5, label="y=x")
+    ax2.set_xlabel("Bulk isoforms per gene", fontsize=11)
+    ax2.set_ylabel("Single-cell isoforms per gene", fontsize=11)
+    ax2.set_title("Isoform Count Correlation", fontsize=12, fontweight="bold")
     ax2.legend()
     ax2.grid(alpha=0.3)
 
     # 3. Top genes in bulk
     ax3 = axes[1, 0]
-    top_bulk = comparison.nlargest(15, 'bulk_isoforms')
+    top_bulk = comparison.nlargest(15, "bulk_isoforms")
     x_pos = range(len(top_bulk))
-    ax3.barh(x_pos, top_bulk['bulk_isoforms'], alpha=0.6,
-             label='Bulk', color='#e74c3c')
-    ax3.barh(x_pos, top_bulk['sc_isoforms'], alpha=0.6,
-             label='Single-cell', color='#3498db')
+    ax3.barh(x_pos, top_bulk["bulk_isoforms"], alpha=0.6, label="Bulk", color="#e74c3c")
+    ax3.barh(
+        x_pos, top_bulk["sc_isoforms"], alpha=0.6, label="Single-cell", color="#3498db"
+    )
     ax3.set_yticks(x_pos)
-    ax3.set_yticklabels(top_bulk['gene'], fontsize=9)
-    ax3.set_xlabel('Number of isoforms', fontsize=11)
-    ax3.set_title('Top 15 Genes by Bulk Isoform Count',
-                  fontsize=12, fontweight='bold')
+    ax3.set_yticklabels(top_bulk["gene"], fontsize=9)
+    ax3.set_xlabel("Number of isoforms", fontsize=11)
+    ax3.set_title("Top 15 Genes by Bulk Isoform Count", fontsize=12, fontweight="bold")
     ax3.legend()
-    ax3.grid(axis='x', alpha=0.3)
+    ax3.grid(axis="x", alpha=0.3)
     ax3.invert_yaxis()
 
     # 4. Difference distribution
     ax4 = axes[1, 1]
-    ax4.hist(comparison['difference'], bins=30, color='#34495e',
-             alpha=0.7, edgecolor='black')
-    ax4.axvline(0, color='red', linestyle='--', linewidth=2,
-                label='Equal diversity')
-    ax4.set_xlabel('Isoform count difference (Bulk - SC)', fontsize=11)
-    ax4.set_ylabel('Number of genes', fontsize=11)
-    ax4.set_title('Isoform Diversity Difference', fontsize=12,
-                  fontweight='bold')
+    ax4.hist(
+        comparison["difference"], bins=30, color="#34495e", alpha=0.7, edgecolor="black"
+    )
+    ax4.axvline(0, color="red", linestyle="--", linewidth=2, label="Equal diversity")
+    ax4.set_xlabel("Isoform count difference (Bulk - SC)", fontsize=11)
+    ax4.set_ylabel("Number of genes", fontsize=11)
+    ax4.set_title("Isoform Diversity Difference", fontsize=12, fontweight="bold")
     ax4.legend()
     ax4.grid(alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "isoform_diversity_comparison.png", dpi=300,
-                bbox_inches='tight')
+    plt.savefig(
+        output_dir / "isoform_diversity_comparison.png", dpi=300, bbox_inches="tight"
+    )
     plt.close()
     print(f"  Saved: {output_dir / 'isoform_diversity_comparison.png'}")
 
     # Save comparison table
-    comparison.to_csv(output_dir / "isoform_diversity_per_gene.csv",
-                      index=False)
+    comparison.to_csv(output_dir / "isoform_diversity_per_gene.csv", index=False)
     print(f"  Saved: {output_dir / 'isoform_diversity_per_gene.csv'}")
 
     return comparison
@@ -528,49 +562,60 @@ def compare_isoform_diversity(bulk_df, sc_df, common_genes, output_dir):
     sc_common = sc_df[sc_df["annot_gene_name"].isin(common_genes)]
 
     # Count isoforms per gene in each dataset
-    bulk_isoforms = (bulk_common.groupby("annot_gene_name")
-                     ["annot_transcript_id"].nunique())
-    sc_isoforms = (sc_common.groupby("annot_gene_name")
-                   ["annot_transcript_id"].nunique())
+    bulk_isoforms = bulk_common.groupby("annot_gene_name")[
+        "annot_transcript_id"
+    ].nunique()
+    sc_isoforms = sc_common.groupby("annot_gene_name")["annot_transcript_id"].nunique()
 
-    print(f"\n  Bulk dataset:")
+    print("\n  Bulk dataset:")
     print(f"    Mean isoforms per gene: {bulk_isoforms.mean():.2f}")
     print(f"    Median isoforms per gene: {bulk_isoforms.median():.0f}")
     print(f"    Max isoforms per gene: {bulk_isoforms.max()}")
 
-    print(f"\n  Single-cell dataset:")
+    print("\n  Single-cell dataset:")
     print(f"    Mean isoforms per gene: {sc_isoforms.mean():.2f}")
     print(f"    Median isoforms per gene: {sc_isoforms.median():.0f}")
     print(f"    Max isoforms per gene: {sc_isoforms.max()}")
 
     # Create comparison DataFrame
-    comparison = pd.DataFrame({
-        'gene': list(set(bulk_isoforms.index) | set(sc_isoforms.index)),
-    })
-    comparison['bulk_isoforms'] = (
-        comparison['gene'].map(bulk_isoforms).fillna(0).astype(int)
+    comparison = pd.DataFrame(
+        {
+            "gene": list(set(bulk_isoforms.index) | set(sc_isoforms.index)),
+        }
     )
-    comparison['sc_isoforms'] = (
-        comparison['gene'].map(sc_isoforms).fillna(0).astype(int)
+    comparison["bulk_isoforms"] = (
+        comparison["gene"].map(bulk_isoforms).fillna(0).astype(int)
     )
-    comparison['difference'] = (
-        comparison['bulk_isoforms'] - comparison['sc_isoforms']
+    comparison["sc_isoforms"] = (
+        comparison["gene"].map(sc_isoforms).fillna(0).astype(int)
     )
-    comparison = comparison.sort_values('bulk_isoforms', ascending=False)
+    comparison["difference"] = comparison["bulk_isoforms"] - comparison["sc_isoforms"]
+    comparison = comparison.sort_values("bulk_isoforms", ascending=False)
 
     # Plot comparison
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
     # 1. Histogram comparison
     ax1 = axes[0, 0]
-    ax1.hist(bulk_isoforms, bins=30, alpha=0.6,
-             label='Bulk', color='#e74c3c', edgecolor='black')
-    ax1.hist(sc_isoforms, bins=30, alpha=0.6,
-             label='Single-cell', color='#3498db', edgecolor='black')
-    ax1.set_xlabel('Number of isoforms per gene', fontsize=11)
-    ax1.set_ylabel('Number of genes', fontsize=11)
-    ax1.set_title('Isoform Diversity Distribution',
-                  fontsize=12, fontweight='bold')
+    ax1.hist(
+        bulk_isoforms,
+        bins=30,
+        alpha=0.6,
+        label="Bulk",
+        color="#e74c3c",
+        edgecolor="black",
+    )
+    ax1.hist(
+        sc_isoforms,
+        bins=30,
+        alpha=0.6,
+        label="Single-cell",
+        color="#3498db",
+        edgecolor="black",
+    )
+    ax1.set_xlabel("Number of isoforms per gene", fontsize=11)
+    ax1.set_ylabel("Number of genes", fontsize=11)
+    ax1.set_title("Isoform Diversity Distribution", fontsize=12, fontweight="bold")
     ax1.legend()
     ax1.grid(alpha=0.3)
 
@@ -580,47 +625,57 @@ def compare_isoform_diversity(bulk_df, sc_df, common_genes, output_dir):
     bulk_vals = [bulk_isoforms.get(g, 0) for g in genes_both]
     sc_vals = [sc_isoforms.get(g, 0) for g in genes_both]
 
-    ax2.scatter(bulk_vals, sc_vals, alpha=0.5, s=30, color='#9b59b6')
+    ax2.scatter(bulk_vals, sc_vals, alpha=0.5, s=30, color="#9b59b6")
     max_val = max(max(bulk_vals), max(sc_vals))
-    ax2.plot([0, max_val], [0, max_val], 'k--', linewidth=1,
-             alpha=0.5, label='y=x')
-    ax2.set_xlabel('Bulk isoforms per gene', fontsize=11)
-    ax2.set_ylabel('Single-cell isoforms per gene', fontsize=11)
-    ax2.set_title('Isoform Count Correlation', fontsize=12, fontweight='bold')
+    ax2.plot([0, max_val], [0, max_val], "k--", linewidth=1, alpha=0.5, label="y=x")
+    ax2.set_xlabel("Bulk isoforms per gene", fontsize=11)
+    ax2.set_ylabel("Single-cell isoforms per gene", fontsize=11)
+    ax2.set_title("Isoform Count Correlation", fontsize=12, fontweight="bold")
     ax2.legend()
     ax2.grid(alpha=0.3)
 
     # 3. Top genes in bulk
     ax3 = axes[1, 0]
-    top_bulk = comparison.nlargest(15, 'bulk_isoforms')
+    top_bulk = comparison.nlargest(15, "bulk_isoforms")
     y_pos = range(len(top_bulk))
-    ax3.barh(y_pos, top_bulk['bulk_isoforms'], alpha=0.7, color='#e74c3c',
-             edgecolor='black', label='Bulk')
-    ax3.barh(y_pos, top_bulk['sc_isoforms'], alpha=0.7, color='#3498db',
-             edgecolor='black', label='Single-cell')
+    ax3.barh(
+        y_pos,
+        top_bulk["bulk_isoforms"],
+        alpha=0.7,
+        color="#e74c3c",
+        edgecolor="black",
+        label="Bulk",
+    )
+    ax3.barh(
+        y_pos,
+        top_bulk["sc_isoforms"],
+        alpha=0.7,
+        color="#3498db",
+        edgecolor="black",
+        label="Single-cell",
+    )
     ax3.set_yticks(y_pos)
-    ax3.set_yticklabels(top_bulk['gene'], fontsize=9)
-    ax3.set_xlabel('Number of isoforms', fontsize=11)
-    ax3.set_title('Top 15 Genes by Bulk Isoform Count',
-                  fontsize=12, fontweight='bold')
+    ax3.set_yticklabels(top_bulk["gene"], fontsize=9)
+    ax3.set_xlabel("Number of isoforms", fontsize=11)
+    ax3.set_title("Top 15 Genes by Bulk Isoform Count", fontsize=12, fontweight="bold")
     ax3.legend()
-    ax3.grid(axis='x', alpha=0.3)
+    ax3.grid(axis="x", alpha=0.3)
     ax3.invert_yaxis()
 
     # 4. Boxplot comparison
     ax4 = axes[1, 1]
     box_data = [bulk_isoforms.values, sc_isoforms.values]
-    bp = ax4.boxplot(box_data, labels=['Bulk', 'Single-cell'],
-                     patch_artist=True)
-    bp['boxes'][0].set_facecolor('#e74c3c')
-    bp['boxes'][1].set_facecolor('#3498db')
-    ax4.set_ylabel('Isoforms per gene', fontsize=11)
-    ax4.set_title('Isoform Diversity Summary', fontsize=12, fontweight='bold')
-    ax4.grid(axis='y', alpha=0.3)
+    bp = ax4.boxplot(box_data, labels=["Bulk", "Single-cell"], patch_artist=True)
+    bp["boxes"][0].set_facecolor("#e74c3c")
+    bp["boxes"][1].set_facecolor("#3498db")
+    ax4.set_ylabel("Isoforms per gene", fontsize=11)
+    ax4.set_title("Isoform Diversity Summary", fontsize=12, fontweight="bold")
+    ax4.grid(axis="y", alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(output_dir / "isoform_diversity_comparison.png",
-                dpi=300, bbox_inches='tight')
+    plt.savefig(
+        output_dir / "isoform_diversity_comparison.png", dpi=300, bbox_inches="tight"
+    )
     plt.close()
     print(f"  Saved: {output_dir / 'isoform_diversity_comparison.png'}")
 
@@ -650,26 +705,30 @@ def compare_transcript_novelty(bulk_df, sc_df, output_dir):
             break
 
     if novelty_col is None:
-        print("  WARNING: No novelty column found in bulk data."
-              " Skipping novelty analysis.")
+        print(
+            "  WARNING: No novelty column found in bulk data."
+            " Skipping novelty analysis."
+        )
         return None, None
 
     # Use standardized 'transcript_novelty' column name for SC
-    if 'transcript_novelty' not in sc_df.columns:
-        print("  WARNING: No 'transcript_novelty' column in SC data."
-              " Skipping novelty analysis.")
+    if "transcript_novelty" not in sc_df.columns:
+        print(
+            "  WARNING: No 'transcript_novelty' column in SC data."
+            " Skipping novelty analysis."
+        )
         return None, None
 
     bulk_novelty = bulk_df[novelty_col].value_counts()
-    sc_novelty = sc_df['transcript_novelty'].value_counts()
+    sc_novelty = sc_df["transcript_novelty"].value_counts()
 
-    print(f"\n  Bulk transcript categories:")
+    print("\n  Bulk transcript categories:")
     for category, count in bulk_novelty.items():
-        print(f"    {category}: {count} ({count/len(bulk_df)*100:.1f}%)")
+        print(f"    {category}: {count} ({count / len(bulk_df) * 100:.1f}%)")
 
-    print(f"\n  Single-cell transcript categories:")
+    print("\n  Single-cell transcript categories:")
     for category, count in sc_novelty.items():
-        print(f"    {category}: {count} ({count/len(sc_df)*100:.1f}%)")
+        print(f"    {category}: {count} ({count / len(sc_df) * 100:.1f}%)")
 
     # Create comparison plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
@@ -682,52 +741,77 @@ def compare_transcript_novelty(bulk_df, sc_df, output_dir):
     bulk_pcts = [count / len(bulk_df) * 100 for count in bulk_counts]
     colors1 = plt.cm.Set3(range(len(all_categories)))
 
-    bars1 = ax1.bar(range(len(all_categories)), bulk_counts, color=colors1,
-                    edgecolor='black', alpha=0.8)
+    bars1 = ax1.bar(
+        range(len(all_categories)),
+        bulk_counts,
+        color=colors1,
+        edgecolor="black",
+        alpha=0.8,
+    )
     ax1.set_xticks(range(len(all_categories)))
-    ax1.set_xticklabels(all_categories, rotation=45, ha='right', fontsize=10)
-    ax1.set_ylabel('Number of transcripts', fontsize=12)
-    ax1.set_title('Bulk Long-read Novelty Categories',
-                  fontsize=13, fontweight='bold')
-    ax1.grid(axis='y', alpha=0.3)
+    ax1.set_xticklabels(all_categories, rotation=45, ha="right", fontsize=10)
+    ax1.set_ylabel("Number of transcripts", fontsize=12)
+    ax1.set_title("Bulk Long-read Novelty Categories", fontsize=13, fontweight="bold")
+    ax1.grid(axis="y", alpha=0.3)
 
     for i, (count, pct) in enumerate(zip(bulk_counts, bulk_pcts)):
         if count > 0:
-            ax1.text(i, count + max(bulk_counts)*0.02, f'{pct:.1f}%',
-                     ha='center', va='bottom', fontsize=9)
+            ax1.text(
+                i,
+                count + max(bulk_counts) * 0.02,
+                f"{pct:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
 
     # Single-cell novelty
     sc_counts = [sc_novelty.get(cat, 0) for cat in all_categories]
     sc_pcts = [count / len(sc_df) * 100 for count in sc_counts]
 
-    bars2 = ax2.bar(range(len(all_categories)), sc_counts, color=colors1,
-                    edgecolor='black', alpha=0.8)
+    bars2 = ax2.bar(
+        range(len(all_categories)),
+        sc_counts,
+        color=colors1,
+        edgecolor="black",
+        alpha=0.8,
+    )
     ax2.set_xticks(range(len(all_categories)))
-    ax2.set_xticklabels(all_categories, rotation=45, ha='right', fontsize=10)
-    ax2.set_ylabel('Number of transcripts', fontsize=12)
-    ax2.set_title('Single-Cell Long-read Novelty Categories',
-                  fontsize=13, fontweight='bold')
-    ax2.grid(axis='y', alpha=0.3)
+    ax2.set_xticklabels(all_categories, rotation=45, ha="right", fontsize=10)
+    ax2.set_ylabel("Number of transcripts", fontsize=12)
+    ax2.set_title(
+        "Single-Cell Long-read Novelty Categories", fontsize=13, fontweight="bold"
+    )
+    ax2.grid(axis="y", alpha=0.3)
 
     for i, (count, pct) in enumerate(zip(sc_counts, sc_pcts)):
         if count > 0:
-            ax2.text(i, count + max(sc_counts)*0.02, f'{pct:.1f}%',
-                     ha='center', va='bottom', fontsize=9)
+            ax2.text(
+                i,
+                count + max(sc_counts) * 0.02,
+                f"{pct:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=9,
+            )
 
     plt.tight_layout()
-    plt.savefig(output_dir / "transcript_novelty_comparison.png",
-                dpi=300, bbox_inches='tight')
+    plt.savefig(
+        output_dir / "transcript_novelty_comparison.png", dpi=300, bbox_inches="tight"
+    )
     plt.close()
     print(f"  Saved: {output_dir / 'transcript_novelty_comparison.png'}")
 
     return bulk_novelty, sc_novelty
 
 
-def find_cluster_specific_isoforms(sc_transcript_adata,
-                                   cluster_col='SampleType',
-                                   output_dir=None,
-                                   top_n=5,
-                                   min_expression=5):
+def find_cluster_specific_isoforms(
+    sc_transcript_adata,
+    cluster_col="SampleType",
+    output_dir=None,
+    top_n=5,
+    min_expression=5,
+):
     """Find genes with cluster-specific isoform usage patterns.
 
     Args:
@@ -740,7 +824,7 @@ def find_cluster_specific_isoforms(sc_transcript_adata,
     Returns:
         DataFrame with cluster-specific isoform information
     """
-    print(f"\nFinding cluster-specific isoform patterns...")
+    print("\nFinding cluster-specific isoform patterns...")
 
     if cluster_col not in sc_transcript_adata.obs.columns:
         print(f"  WARNING: '{cluster_col}' not found. Skipping.")
@@ -750,7 +834,7 @@ def find_cluster_specific_isoforms(sc_transcript_adata,
 
     # Get clusters in specific order: MB_cells, MB_nuclei, MT_nuclei
     all_clusters = sc_transcript_adata.obs[cluster_col].unique()
-    desired_order = ['MB_cells', 'MB_nuclei', 'MT_nuclei']
+    desired_order = ["MB_cells", "MB_nuclei", "MT_nuclei"]
     clusters = [c for c in desired_order if c in all_clusters]
     # Add any remaining clusters not in desired order
     clusters.extend([c for c in all_clusters if c not in desired_order])
@@ -761,25 +845,25 @@ def find_cluster_specific_isoforms(sc_transcript_adata,
     # Get all genes
     all_genes = set()
     for tid in sc_transcript_adata.var_names:
-        if '-' in str(tid):
-            gene = str(tid).rsplit('-', 1)[0]
+        if "-" in str(tid):
+            gene = str(tid).rsplit("-", 1)[0]
             all_genes.add(gene)
 
-    print(f"  Analyzing {len(all_genes)} genes across "
-          f"{len(clusters)} clusters...")
+    print(f"  Analyzing {len(all_genes)} genes across {len(clusters)} clusters...")
 
     # Pre-group isoforms by gene for efficient lookup
     gene_to_isoforms = {}
     for tid in sc_transcript_adata.var_names:
-        if '-' in str(tid):
-            gene = str(tid).rsplit('-', 1)[0]
+        if "-" in str(tid):
+            gene = str(tid).rsplit("-", 1)[0]
             if gene not in gene_to_isoforms:
                 gene_to_isoforms[gene] = []
             gene_to_isoforms[gene].append(tid)
-    
+
     # Pre-compute cluster masks and subset data once per cluster
-    cluster_masks = {cluster: sc_transcript_adata.obs[cluster_col] == cluster
-                     for cluster in clusters}
+    cluster_masks = {
+        cluster: sc_transcript_adata.obs[cluster_col] == cluster for cluster in clusters
+    }
 
     for gene in all_genes:
         # Get all isoforms of this gene
@@ -796,41 +880,47 @@ def find_cluster_specific_isoforms(sc_transcript_adata,
             cluster_data = sc_transcript_adata[cluster_mask, gene_isoforms]
 
             # Sum expression for each isoform in this cluster
-            if hasattr(cluster_data.X, 'toarray'):
-                expr_sums = np.asarray(
-                    cluster_data.X.toarray()).sum(axis=0)
+            if hasattr(cluster_data.X, "toarray"):
+                expr_sums = np.asarray(cluster_data.X.toarray()).sum(axis=0)
             else:
                 expr_sums = np.asarray(cluster_data.X.sum(axis=0)).flatten()
-            
+
             isoform_exprs = dict(zip(gene_isoforms, expr_sums))
 
             # Find dominant isoform for this cluster
             if sum(isoform_exprs.values()) >= min_expression:
                 dominant = max(isoform_exprs, key=isoform_exprs.get)
                 cluster_isoform_expr[cluster] = {
-                    'dominant_isoform': dominant,
-                    'expression': isoform_exprs[dominant],
-                    'total_expression': sum(isoform_exprs.values())
+                    "dominant_isoform": dominant,
+                    "expression": isoform_exprs[dominant],
+                    "total_expression": sum(isoform_exprs.values()),
                 }
 
         # Check if different clusters have different dominant isoforms
         if len(cluster_isoform_expr) >= 2:
-            dominant_isoforms = [info['dominant_isoform']
-                                 for info in cluster_isoform_expr.values()]
+            dominant_isoforms = [
+                info["dominant_isoform"] for info in cluster_isoform_expr.values()
+            ]
 
             if len(set(dominant_isoforms)) > 1:  # Isoform switching detected!
-                gene_isoform_patterns.append({
-                    'gene': gene,
-                    'num_isoforms': len(gene_isoforms),
-                    **{f'{cluster}_isoform':
-                       cluster_isoform_expr.get(cluster, {})
-                       .get('dominant_isoform', 'None')
-                       for cluster in clusters},
-                    **{f'{cluster}_expr':
-                       cluster_isoform_expr.get(cluster, {})
-                       .get('total_expression', 0)
-                       for cluster in clusters}
-                })
+                gene_isoform_patterns.append(
+                    {
+                        "gene": gene,
+                        "num_isoforms": len(gene_isoforms),
+                        **{
+                            f"{cluster}_isoform": cluster_isoform_expr.get(
+                                cluster, {}
+                            ).get("dominant_isoform", "None")
+                            for cluster in clusters
+                        },
+                        **{
+                            f"{cluster}_expr": cluster_isoform_expr.get(
+                                cluster, {}
+                            ).get("total_expression", 0)
+                            for cluster in clusters
+                        },
+                    }
+                )
 
     if len(gene_isoform_patterns) == 0:
         print("  No cluster-specific isoform switching found.")
@@ -838,11 +928,13 @@ def find_cluster_specific_isoforms(sc_transcript_adata,
 
     switching_df = pd.DataFrame(gene_isoform_patterns)
     switching_df = switching_df.sort_values(
-        [f'{clusters[0]}_expr'], ascending=False
+        [f"{clusters[0]}_expr"], ascending=False
     ).head(top_n)
 
-    print(f"  Found {len(gene_isoform_patterns)} genes with cluster-specific "
-          "isoform usage")
+    print(
+        f"  Found {len(gene_isoform_patterns)} genes with cluster-specific "
+        "isoform usage"
+    )
     print(f"  Top {top_n} shown by expression")
 
     # Create visualization
@@ -855,75 +947,83 @@ def find_cluster_specific_isoforms(sc_transcript_adata,
         all_isoform_nums = set()
         for i, (idx, row) in enumerate(switching_df.iterrows()):
             for cluster in clusters:
-                isoform = row[f'{cluster}_isoform']
-                if isoform != 'None':
-                    isoform_num = (
-                        isoform.split('-')[-1] if '-' in isoform else isoform
-                    )
+                isoform = row[f"{cluster}_isoform"]
+                if isoform != "None":
+                    isoform_num = isoform.split("-")[-1] if "-" in isoform else isoform
                     all_isoform_nums.add(isoform_num)
 
         # Create color map for isoform numbers
         isoform_nums_sorted = sorted(all_isoform_nums)
         isoform_colors = {}
-        cmap = plt.cm.get_cmap('tab20')
+        cmap = plt.cm.get_cmap("tab20")
         for idx, iso_num in enumerate(isoform_nums_sorted):
             isoform_colors[iso_num] = cmap(idx % 20)
 
         # For each gene, show which isoform is dominant in each cluster
         for i, (idx, row) in enumerate(switching_df.iterrows()):
-            gene = row['gene']
+            gene = row["gene"]
 
             for j, cluster in enumerate(clusters):
-                isoform = row[f'{cluster}_isoform']
-                if isoform != 'None':
+                isoform = row[f"{cluster}_isoform"]
+                if isoform != "None":
                     # Extract isoform number
-                    isoform_num = (
-                        isoform.split('-')[-1] if '-' in isoform else isoform
-                    )
+                    isoform_num = isoform.split("-")[-1] if "-" in isoform else isoform
                     # Use color based on isoform number
-                    ax.text(j, i, isoform_num,
-                            ha='center',
-                            va='center',
-                            fontsize=10,
-                            fontweight='bold',
-                            bbox=dict(boxstyle='round,pad=0.5',
-                                      facecolor=isoform_colors[isoform_num],
-                                      edgecolor='black',
-                                      linewidth=1.5,
-                                      alpha=0.8))
+                    ax.text(
+                        j,
+                        i,
+                        isoform_num,
+                        ha="center",
+                        va="center",
+                        fontsize=10,
+                        fontweight="bold",
+                        bbox=dict(
+                            boxstyle="round,pad=0.5",
+                            facecolor=isoform_colors[isoform_num],
+                            edgecolor="black",
+                            linewidth=1.5,
+                            alpha=0.8,
+                        ),
+                    )
 
         ax.set_xlim(-0.5, len(clusters) - 0.5)
         ax.set_ylim(-0.5, len(switching_df) - 0.5)
         ax.set_xticks(range(len(clusters)))
-        ax.set_xticklabels(clusters, fontsize=11, fontweight='bold')
+        ax.set_xticklabels(clusters, fontsize=11, fontweight="bold")
         ax.set_yticks(range(len(switching_df)))
-        ax.set_yticklabels(switching_df['gene'], fontsize=10)
-        ax.set_xlabel('Cluster', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Gene', fontsize=12, fontweight='bold')
+        ax.set_yticklabels(switching_df["gene"], fontsize=10)
+        ax.set_xlabel("Cluster", fontsize=12, fontweight="bold")
+        ax.set_ylabel("Gene", fontsize=12, fontweight="bold")
         ax.set_title(
-            f'Top {top_n} Genes with Cluster-Specific Isoform Switching\n'
-            f'(Colors indicate same isoform across clusters)',
-            fontsize=13, fontweight='bold')
+            f"Top {top_n} Genes with Cluster-Specific Isoform Switching\n"
+            f"(Colors indicate same isoform across clusters)",
+            fontsize=13,
+            fontweight="bold",
+        )
         ax.invert_yaxis()
-        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.grid(True, alpha=0.3, linestyle="--")
 
         plt.tight_layout()
-        plt.savefig(output_dir / "cluster_isoform_switching.png", dpi=300,
-                    bbox_inches='tight')
+        plt.savefig(
+            output_dir / "cluster_isoform_switching.png", dpi=300, bbox_inches="tight"
+        )
         plt.close()
         print(f"  Saved: {output_dir / 'cluster_isoform_switching.png'}")
 
         # Save table
-        switching_df.to_csv(output_dir / "cluster_isoform_switching.csv",
-                            index=False)
+        switching_df.to_csv(output_dir / "cluster_isoform_switching.csv", index=False)
         print(f"  Saved: {output_dir / 'cluster_isoform_switching.csv'}")
 
     return switching_df
 
 
-def compare_bulk_vs_cluster_isoforms(bulk_df, sc_transcript_adata,
-                                     cluster_col='SampleType',
-                                     output_dir=None, exclude_talon_ids=True):
+def compare_bulk_vs_cluster_isoforms(
+    bulk_df,
+    sc_transcript_adata,
+    cluster_col="SampleType",
+    output_dir=None,
+    exclude_talon_ids=True,
+):
     """Compare bulk isoform diversity to cluster-specific diversity.
 
     Args:
@@ -954,7 +1054,7 @@ def compare_bulk_vs_cluster_isoforms(bulk_df, sc_transcript_adata,
         cluster_data = sc_transcript_adata[cluster_mask, :]
 
         # Get expressed transcripts
-        if hasattr(cluster_data.X, 'toarray'):
+        if hasattr(cluster_data.X, "toarray"):
             expr_sums = np.asarray(cluster_data.X.sum(axis=0)).flatten()
         else:
             expr_sums = cluster_data.X.sum(axis=0)
@@ -965,27 +1065,28 @@ def compare_bulk_vs_cluster_isoforms(bulk_df, sc_transcript_adata,
         # Count isoforms per gene
         gene_isoforms = {}
         for tid in expressed_transcripts:
-            if '-' in str(tid):
-                gene_name = str(tid).rsplit('-', 1)[0]
+            if "-" in str(tid):
+                gene_name = str(tid).rsplit("-", 1)[0]
                 gene_isoforms[gene_name] = gene_isoforms.get(gene_name, 0) + 1
 
         cluster_diversity[cluster] = pd.Series(gene_isoforms)
-        print(f"    {cluster}: Mean isoforms/gene = "
-              f"{pd.Series(gene_isoforms.values()).mean():.2f}")
+        print(
+            f"    {cluster}: Mean isoforms/gene = "
+            f"{pd.Series(gene_isoforms.values()).mean():.2f}"
+        )
 
     # Get bulk isoform counts per gene
     if exclude_talon_ids and "annot_transcript_name" in bulk_df.columns:
         bulk_filtered = bulk_df[
-            (~bulk_df["annot_transcript_name"]
-             .str.startswith("TALON", na=False)) &
-            (~bulk_df["annot_gene_name"]
-             .str.startswith("TALON", na=False))
+            (~bulk_df["annot_transcript_name"].str.startswith("TALON", na=False))
+            & (~bulk_df["annot_gene_name"].str.startswith("TALON", na=False))
         ]
     else:
         bulk_filtered = bulk_df
 
-    bulk_isoforms = (bulk_filtered.groupby("annot_gene_name")
-                     ["annot_transcript_name"].nunique())
+    bulk_isoforms = bulk_filtered.groupby("annot_gene_name")[
+        "annot_transcript_name"
+    ].nunique()
 
     # Create comparison plot
     if output_dir:
@@ -998,7 +1099,7 @@ def compare_bulk_vs_cluster_isoforms(bulk_df, sc_transcript_adata,
 
         # Add bulk data
         all_data.append(bulk_isoforms.values)
-        all_labels.append('Bulk')
+        all_labels.append("Bulk")
 
         # Add each cluster
         for cluster_name, diversity in cluster_diversity.items():
@@ -1006,52 +1107,61 @@ def compare_bulk_vs_cluster_isoforms(bulk_df, sc_transcript_adata,
             all_labels.append(cluster_name)
 
         # Create violin plot
-        parts = ax.violinplot(all_data, positions=range(len(all_data)),
-                              showmeans=True, showmedians=True)
+        parts = ax.violinplot(
+            all_data, positions=range(len(all_data)), showmeans=True, showmedians=True
+        )
 
         # Color the violins
-        colors = ['#e74c3c'] + (
-            list(plt.cm.Set3(range(len(cluster_diversity)))))
-        for i, pc in enumerate(parts['bodies']):
+        colors = ["#e74c3c"] + (list(plt.cm.Set3(range(len(cluster_diversity)))))
+        for i, pc in enumerate(parts["bodies"]):
             pc.set_facecolor(colors[i])
             pc.set_alpha(0.7)
 
         ax.set_xticks(range(len(all_labels)))
-        ax.set_xticklabels(all_labels, rotation=45, ha='right')
-        ax.set_ylabel('Isoforms per gene', fontsize=12)
-        ax.set_title('Isoform Diversity: Bulk vs Clusters', fontsize=13,
-                     fontweight='bold')
-        ax.grid(axis='y', alpha=0.3)
+        ax.set_xticklabels(all_labels, rotation=45, ha="right")
+        ax.set_ylabel("Isoforms per gene", fontsize=12)
+        ax.set_title(
+            "Isoform Diversity: Bulk vs Clusters", fontsize=13, fontweight="bold"
+        )
+        ax.grid(axis="y", alpha=0.3)
 
         # Add mean values as text
         for i, (data, label) in enumerate(zip(all_data, all_labels)):
             mean_val = np.mean(data)
-            ax.text(i, ax.get_ylim()[1] * 0.95, f'μ={mean_val:.2f}',
-                    ha='center', va='top', fontsize=9, fontweight='bold')
+            ax.text(
+                i,
+                ax.get_ylim()[1] * 0.95,
+                f"μ={mean_val:.2f}",
+                ha="center",
+                va="top",
+                fontsize=9,
+                fontweight="bold",
+            )
 
         plt.tight_layout()
-        plt.savefig(output_dir / "bulk_vs_cluster_isoform_diversity.png",
-                    dpi=300, bbox_inches='tight')
-        plt.close()
-        print(
-            f"  Saved: {output_dir / 'bulk_vs_cluster_isoform_diversity.png'}"
+        plt.savefig(
+            output_dir / "bulk_vs_cluster_isoform_diversity.png",
+            dpi=300,
+            bbox_inches="tight",
         )
+        plt.close()
+        print(f"  Saved: {output_dir / 'bulk_vs_cluster_isoform_diversity.png'}")
 
         # Create summary statistics table
-        summary = pd.DataFrame({
-            'Dataset': all_labels,
-            'Mean_isoforms_per_gene': [np.mean(data) for data in all_data],
-            'Median_isoforms_per_gene': [np.median(data) for data in all_data],
-            'Max_isoforms': [np.max(data) for data in all_data],
-            'Genes_with_multiple_isoforms': [(data > 1).sum()
-                                             for data in all_data]
-        })
-
-        summary.to_csv(output_dir / "bulk_vs_cluster_diversity_summary.csv",
-                       index=False)
-        print(
-            f"  Saved: {output_dir / 'bulk_vs_cluster_diversity_summary.csv'}"
+        summary = pd.DataFrame(
+            {
+                "Dataset": all_labels,
+                "Mean_isoforms_per_gene": [np.mean(data) for data in all_data],
+                "Median_isoforms_per_gene": [np.median(data) for data in all_data],
+                "Max_isoforms": [np.max(data) for data in all_data],
+                "Genes_with_multiple_isoforms": [(data > 1).sum() for data in all_data],
+            }
         )
+
+        summary.to_csv(
+            output_dir / "bulk_vs_cluster_diversity_summary.csv", index=False
+        )
+        print(f"  Saved: {output_dir / 'bulk_vs_cluster_diversity_summary.csv'}")
 
         return summary
 
@@ -1063,29 +1173,39 @@ def main():
         description="Compare transcript diversity between bulk TALON and "
         "single-cell long-read data"
     )
-    parser.add_argument("--bulk-talon", required=True,
-                        help="Path to bulk TALON TSV file")
-    parser.add_argument("--sc-gene-data",
-                        default="outputs/anndata/combined_long_read_gene.h5ad",
-                        help="Path to single-cell gene-level h5ad file "
-                        "(default: outputs/anndata/combined_long_read_gene"
-                        ".h5ad)")
-    parser.add_argument("--sc-transcript-data",
-                        default="outputs/anndata/"
-                        "combined_long_read_transcript.h5ad",
-                        help="Path to single-cell transcript-level h5ad file. "
-                        "Use data/long_transcript.h5ad for original data "
-                        "or outputs/anndata/"
-                        "combined_long_read_transcript.h5ad"
-                        " (default) for combined datasets.")
-    parser.add_argument("--output", required=True,
-                        help="Output directory for plots and tables")
-    parser.add_argument("--min-reads", type=int, default=5,
-                        help="Minimum read count for TALON transcripts "
-                        "(default: 5)")
-    parser.add_argument("--include-talon-ids", action="store_true",
-                        help="Include TALON IDs in transcript comparisons "
-                        "(default: exclude them)")
+    parser.add_argument(
+        "--bulk-talon", required=True, help="Path to bulk TALON TSV file"
+    )
+    parser.add_argument(
+        "--sc-gene-data",
+        default="outputs/anndata/combined_long_read_gene.h5ad",
+        help="Path to single-cell gene-level h5ad file "
+        "(default: outputs/anndata/combined_long_read_gene"
+        ".h5ad)",
+    )
+    parser.add_argument(
+        "--sc-transcript-data",
+        default="outputs/anndata/combined_long_read_transcript.h5ad",
+        help="Path to single-cell transcript-level h5ad file. "
+        "Use data/long_transcript.h5ad for original data "
+        "or outputs/anndata/"
+        "combined_long_read_transcript.h5ad"
+        " (default) for combined datasets.",
+    )
+    parser.add_argument(
+        "--output", required=True, help="Output directory for plots and tables"
+    )
+    parser.add_argument(
+        "--min-reads",
+        type=int,
+        default=5,
+        help="Minimum read count for TALON transcripts (default: 5)",
+    )
+    parser.add_argument(
+        "--include-talon-ids",
+        action="store_true",
+        help="Include TALON IDs in transcript comparisons (default: exclude them)",
+    )
 
     args = parser.parse_args()
 
@@ -1098,33 +1218,27 @@ def main():
     print(f"Output directory: {output_dir}")
 
     # Load data
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("LOADING DATA")
-    print("="*60)
+    print("=" * 60)
 
     # Load bulk TALON data
     bulk_df = load_talon_data(args.bulk_talon, args.min_reads)
-    bulk_genes, bulk_transcripts, bulk_transcript_names = (
-        extract_gene_set_from_talon(
-                                    bulk_df,
-                                    "Bulk TALON",
-                                    exclude_talon_ids=exclude_talon_ids
-        ))
+    bulk_genes, bulk_transcripts, bulk_transcript_names = extract_gene_set_from_talon(
+        bulk_df, "Bulk TALON", exclude_talon_ids=exclude_talon_ids
+    )
 
     # Load single-cell gene-level data
     print(f"Loading single-cell gene data from {args.sc_gene_data}...")
     sc_gene_adata = get_anndata(args.sc_gene_data)
-    sc_genes = extract_gene_set_from_h5ad(sc_gene_adata,
-                                          "Single-cell (gene-level)")
+    sc_genes = extract_gene_set_from_h5ad(sc_gene_adata, "Single-cell (gene-level)")
 
     # Load transcript-level data
     print(f"Loading sc transcript data from {args.sc_transcript_data}...")
     sc_transcript_adata = get_anndata(args.sc_transcript_data)
-    sc_transcripts, sc_transcript_genes, sc_var = (
-        extract_transcript_set_from_h5ad(
-                                        sc_transcript_adata,
-                                        "Single-cell (transcript-level)"
-        ))
+    sc_transcripts, sc_transcript_genes, sc_var = extract_transcript_set_from_h5ad(
+        sc_transcript_adata, "Single-cell (transcript-level)"
+    )
 
     # Compare gene overlap
     common_genes = compare_gene_overlap(bulk_genes, sc_genes, output_dir)
@@ -1143,12 +1257,10 @@ def main():
         print(f"  Jaccard index: {jaccard:.3f}")
 
     # Try comparing by transcript names
-    print(f"\n  NOTE: SC transcript data loaded from: "
-          f"{args.sc_transcript_data}")
+    print(f"\n  NOTE: SC transcript data loaded from: {args.sc_transcript_data}")
     print(f"  Sample SC transcript IDs: {list(sc_transcripts)[:5]}")
     if bulk_transcript_names:
-        print(f"  Sample bulk transcript names: "
-              f"{list(bulk_transcript_names)[:5]}")
+        print(f"  Sample bulk transcript names: {list(bulk_transcript_names)[:5]}")
 
     exact_name_matches, gene_name_matches = compare_transcript_names(
         bulk_transcript_names, sc_transcripts, bulk_df
@@ -1156,10 +1268,8 @@ def main():
 
     # Create visualization for transcript name overlap
     if bulk_transcript_names:
-        common_transcripts = (
-            compare_transcript_overlap(bulk_transcript_names,
-                                       sc_transcripts,
-                                       output_dir)
+        common_transcripts = compare_transcript_overlap(
+            bulk_transcript_names, sc_transcripts, output_dir
         )
 
     # Compare isoform diversity between bulk and SC transcript data
@@ -1188,59 +1298,65 @@ def main():
     novelty_counts = None
 
     if novelty_col and sc_has_novelty:
-        print(f"\n✓ Both datasets have novelty information!")
+        print("\n✓ Both datasets have novelty information!")
         print(f"  Bulk: {novelty_col}, SC: {sc_novelty_col}")
 
         # Create SC dataframe with novelty info for comparison
         sc_novelty_df = sc_var[[sc_novelty_col]].copy()
         # Standardize column name
-        sc_novelty_df.columns = ['transcript_novelty']
+        sc_novelty_df.columns = ["transcript_novelty"]
 
         # Filter bulk to common transcripts if needed
-        bulk_novelty, sc_novelty = compare_transcript_novelty(bulk_df,
-                                                              sc_novelty_df,
-                                                              output_dir)
+        bulk_novelty, sc_novelty = compare_transcript_novelty(
+            bulk_df, sc_novelty_df, output_dir
+        )
         novelty_counts = bulk_novelty
     elif novelty_col:
-        print("\nBulk transcript novelty categories "
-              "(SC data has no novelty info):")
+        print("\nBulk transcript novelty categories (SC data has no novelty info):")
         novelty_counts = bulk_df[novelty_col].value_counts()
         for category, count in novelty_counts.items():
-            print(f"  {category}: {count} ({count/len(bulk_df)*100:.1f}%)")
+            print(f"  {category}: {count} ({count / len(bulk_df) * 100:.1f}%)")
     else:
         print("\n✗ No novelty information available in either dataset")
 
     # Cluster-specific isoform analysis
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("CLUSTER-SPECIFIC ISOFORM ANALYSIS")
-    print("="*60)
+    print("=" * 60)
 
     # Find cluster-specific isoform switching
     switching_df = find_cluster_specific_isoforms(
-        sc_transcript_adata, cluster_col='SampleType',
-        output_dir=output_dir, top_n=5, min_expression=5
+        sc_transcript_adata,
+        cluster_col="SampleType",
+        output_dir=output_dir,
+        top_n=5,
+        min_expression=5,
     )
 
     # Summary report
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("COMPARISON SUMMARY")
-    print("="*60)
-    print(f"Bulk TALON:")
+    print("=" * 60)
+    print("Bulk TALON:")
     print(f"  Genes: {len(bulk_genes)}")
     print(f"  Transcripts: {len(bulk_transcripts)}")
     if novelty_col and novelty_counts is not None:
         print(f"  Novelty categories: {len(novelty_counts)}")
-    print(f"\nSingle-cell:")
+    print("\nSingle-cell:")
     print(f"  Genes detected: {len(sc_genes)}")
     print(f"  Transcripts detected: {len(sc_transcripts)}")
-    print(f"\nOverlap:")
-    print(f"  Common genes: {len(common_genes)} "
-          f"({len(common_genes)/len(bulk_genes)*100:.1f}% of bulk)")
-    print(f"  Common transcripts: {len(transcript_overlap)} "
-          f"({len(transcript_overlap)/len(bulk_transcripts)*100:.1f}% of "
-          f"bulk)")
+    print("\nOverlap:")
+    print(
+        f"  Common genes: {len(common_genes)} "
+        f"({len(common_genes) / len(bulk_genes) * 100:.1f}% of bulk)"
+    )
+    print(
+        f"  Common transcripts: {len(transcript_overlap)} "
+        f"({len(transcript_overlap) / len(bulk_transcripts) * 100:.1f}% of "
+        f"bulk)"
+    )
     print(f"\nOutput directory: {output_dir}")
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,9 @@ import pandas as pd
 
 def main():
     if len(sys.argv) < 4:
-        print("Usage: map_ids_by_symbol.py <talon_tsv> <h5ad> <out_csv>", file=sys.stderr)
+        print(
+            "Usage: map_ids_by_symbol.py <talon_tsv> <h5ad> <out_csv>", file=sys.stderr
+        )
         sys.exit(2)
     tsv, h5ad, out_csv = sys.argv[1], sys.argv[2], sys.argv[3]
 
@@ -60,9 +62,7 @@ def main():
         # 3) Fallback: if transcript_id contains a trailing "-Symbol", parse it
     if "transcript_id" in adata.var.columns:
         tparts = (
-            adata.var["transcript_id"]
-            .astype(str)
-            .str.rsplit("-", n=1, expand=True)
+            adata.var["transcript_id"].astype(str).str.rsplit("-", n=1, expand=True)
         )
         if isinstance(tparts, pd.DataFrame) and tparts.shape[1] == 2:
             candidates.append(tparts[1].astype(str))
@@ -92,6 +92,7 @@ def main():
     out = pd.DataFrame({"match_type": "symbol", "gene": matched_syms})
     out.to_csv(out_csv, index=False)
     print(f"Matched {len(matched_syms)} by symbol -> {out_csv}")
+
 
 if __name__ == "__main__":
     main()

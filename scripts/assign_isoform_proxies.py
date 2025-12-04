@@ -1,14 +1,19 @@
 #!/usr/bin/env python
 """
-Assign cluster-specific isoform proxies from TALON annotations, using a symbol map.
+Assign cluster-specific isoform proxies from TALON annotations, using a
+symbol map.
 
 Usage:
-  assign_isoform_proxies.py <talon_tsv> <qc_h5ad> luster_csv> <symbol_map_csv> <out_csv>
+    assign_isoform_proxies.py <talon_tsv> <qc_h5ad>
+    <cluster_csv> <symbol_map_csv> <out_csv>
 
 Notes:
-- <symbol_map_csv> is outputs/tables/talon_scrna_symbol_map.csv from map_ids_by_symbol.py with columns:
-  match_type,gene   (gene = biological symbol present in both TALON and AnnData)
+- `<symbol_map_csv>` should be `outputs/tables/talon_scrna_symbol_map.csv`,
+    which is created by `map_ids_by_symbol.py` and must contain the
+    columns `match_type` and `gene` (where `gene` is the biological symbol
+    present in both TALON and the AnnData object).
 """
+
 import sys
 from pathlib import Path
 
@@ -45,7 +50,7 @@ def main():
     if len(sys.argv) < 6:
         print(
             "Usage: assign_isoform_proxies.py <talon_tsv> <qc_h5ad> "
-            "luster_csv> <symbol_map_csv> <out_csv>",
+            "<cluster_csv> <symbol_map_csv> <out_csv>",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -67,7 +72,8 @@ def main():
             print(f"ERROR: {label} not found: {p}", file=sys.stderr)
             sys.exit(1)
 
-    # 1) TALON transcript counts grouped by annot_gene_name (assumed biological symbol in symbol map)
+    # 1) TALON transcript counts grouped by annot_gene_name
+    # (assumed biological symbol in symbol map)
     header = pd.read_csv(talon_path, sep="\t", nrows=1)
     missing_cols = [
         c for c in ["annot_gene_name", "annot_transcript_id"] if c not in header.columns
@@ -79,14 +85,11 @@ def main():
         )
         sys.exit(1)
 
-    talon = (
-        pd.read_csv(
-            talon_path,
-            sep="\t",
-            usecols=["annot_gene_name", "annot_transcript_id"],
-        )
-        .dropna()
-    )
+    talon = pd.read_csv(
+        talon_path,
+        sep="\t",
+        usecols=["annot_gene_name", "annot_transcript_id"],
+    ).dropna()
     talon["annot_gene_name"] = talon["annot_gene_name"].astype(str)
     talon["annot_transcript_id"] = talon["annot_transcript_id"].astype(str)
     tx_counts = (
@@ -149,12 +152,10 @@ def main():
 
     # 4) Assign top TALON transcript by read_count for expressed genes per cluster
     tx_counts_sym = tx_counts[tx_counts["annot_gene_name"].isin(shared_symbols)]
-    
     # Pre-index transcripts by gene for O(1) lookup instead of O(n) filtering
     # Sort by read_count descending, then group by gene and take first (top) row
     tx_counts_sorted = tx_counts_sym.sort_values("read_count", ascending=False)
     tx_by_gene = tx_counts_sorted.groupby("annot_gene_name").first()
-    
     proxies = []
     for cluster_id in cluster_expr.index:
         row = cluster_expr.loc[cluster_id]
@@ -177,14 +178,21 @@ def main():
 
     out_df = pd.DataFrame(
         proxies,
-        columns=["cluster", "gene", "mean_expr", "proxy_transcript", "proxy_read_count"],
+        columns=[
+            "cluster",
+            "gene",
+            "mean_expr",
+            "proxy_transcript",
+            "proxy_read_count",
+        ],
     )
     out_df.to_csv(out_csv, index=False)
 
     print(f"Assigned {len(out_df)} cluster-gene proxies -> {out_csv}")
     if out_df.empty:
         print(
-            "WARNING: No proxies were assigned. Check symbol overlap and expression thresholds.",
+            "WARNING: No proxies were assigned. "
+            "Check symbol overlap and expression thresholds.",
             file=sys.stderr,
         )
 

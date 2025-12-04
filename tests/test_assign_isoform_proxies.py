@@ -13,8 +13,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts import assign_isoform_proxies
-
 
 @pytest.fixture
 def small_talon_tsv(tmp_path):
@@ -57,7 +55,7 @@ def small_qc_h5ad(tmp_path):
     X = np.array(
         [
             [10, 0],  # cell1: GeneA high, GeneB 0
-            [5,  2],  # cell2: both expressed
+            [5, 2],  # cell2: both expressed
         ],
         dtype=float,
     )
@@ -92,12 +90,23 @@ def small_symbol_map_csv(tmp_path):
     return csv_path
 
 
-def test_assign_isoform_proxies_basic(tmp_path, small_talon_tsv, small_qc_h5ad, small_cluster_csv, small_symbol_map_csv, monkeypatch):
+def test_assign_isoform_proxies_basic(
+    tmp_path,
+    small_talon_tsv,
+    small_qc_h5ad,
+    small_cluster_csv,
+    small_symbol_map_csv,
+    monkeypatch,
+):
     """
     assign_isoform_proxies.py should:
     - Produce at least one proxy row.
-    - Choose the highest-read-count transcript per gene (TX1 for GeneA, TX3 for GeneB in this setup).
+    - Choose the highest-read-count transcript per gene
+    - (TX1 for GeneA, TX3 for GeneB in this setup).
     """
+    # Import under test after sys.path was adjusted above
+    from scripts import assign_isoform_proxies
+
     out_csv = tmp_path / "isoform_proxies_small.csv"
 
     argv = [
@@ -122,6 +131,7 @@ def test_assign_isoform_proxies_basic(tmp_path, small_talon_tsv, small_qc_h5ad, 
     # Expect highest-read-count transcripts chosen by our synthetic tallies
     assert proxies_by_gene.get("GeneA") == "TX1"
     assert proxies_by_gene.get("GeneB") == "TX3"
+
 
 def test_assign_isoform_proxies_no_expression(tmp_path, monkeypatch):
     """
@@ -157,6 +167,9 @@ def test_assign_isoform_proxies_no_expression(tmp_path, monkeypatch):
     symmap_df.to_csv(symmap_path, index=False)
 
     out_csv = tmp_path / "isoform_proxies_no_expr.csv"
+
+    # Import under test after sys.path was adjusted above
+    from scripts import assign_isoform_proxies
 
     argv = [
         "assign_isoform_proxies.py",

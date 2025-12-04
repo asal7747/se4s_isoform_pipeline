@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from scripts import map_ids_by_symbol
+
 # Ensure project root on path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-
-from scripts import map_ids_by_symbol
 
 
 @pytest.fixture
@@ -58,8 +58,12 @@ def small_scrna_h5ad(tmp_path):
     return h5ad_path
 
 
-
-def test_map_ids_by_symbol_basic_overlap(tmp_path, small_talon_tsv, small_scrna_h5ad, monkeypatch):
+def test_map_ids_by_symbol_basic_overlap(
+        tmp_path,
+        small_talon_tsv,
+        small_scrna_h5ad,
+        monkeypatch
+        ):
     """
     map_ids_by_symbol.py should find overlapping symbols between TALON and AnnData.
     In this synthetic example, GeneA and GeneB should overlap.
@@ -83,7 +87,11 @@ def test_map_ids_by_symbol_basic_overlap(tmp_path, small_talon_tsv, small_scrna_
     # Match type should be 'symbol'
     assert set(df["match_type"]) == {"symbol"}
 
-def test_map_ids_by_symbol_no_overlap(tmp_path, monkeypatch):
+
+def test_map_ids_by_symbol_no_overlap(
+        tmp_path,
+        monkeypatch
+        ):
     """
     When there is no symbol overlap between TALON and AnnData, the script
     should still run and write an empty CSV (but print a warning).
