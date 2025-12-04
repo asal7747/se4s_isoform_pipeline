@@ -6,13 +6,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import anndata as ad
-import numpy as np
-import pandas as pd
-import pytest
-import scanpy as sc  # only used to reload the QC output for sanity checks
+import anndata as ad  # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import pytest  # noqa: E402
+import scanpy as sc  # noqa: E402
 
-from scripts.utils import load_and_qc_h5ad
+from scripts.utils import load_and_qc_h5ad  # noqa: E402
 
 
 @pytest.fixture
@@ -33,7 +33,8 @@ def small_h5ad(tmp_path):
         dtype=float,
     )
     obs = pd.DataFrame(index=[f"cell{i}" for i in range(X.shape[0])])
-    var = pd.DataFrame(index=["mt-Nd1", "GeneA", "GeneB"])  # tests mt_prefix handling
+    # tests mt_prefix handling
+    var = pd.DataFrame(index=["mt-Nd1", "GeneA", "GeneB"])
 
     adata = ad.AnnData(X=X, obs=obs, var=var)
 
@@ -68,7 +69,8 @@ def test_load_and_qc_h5ad_happy_path(small_h5ad, tmp_path):
 
 def test_load_and_qc_h5ad_missing_file(tmp_path):
     """
-    Calling load_and_qc_h5ad on a non-existent file should raise FileNotFoundError.
+    Calling load_and_qc_h5ad on a non-existent file should raise
+    FileNotFoundError.
     """
     missing = tmp_path / "does_not_exist.h5ad"
     out_dir = tmp_path / "out"
@@ -112,6 +114,7 @@ def test_load_and_qc_h5ad_all_filtered_raises(small_h5ad, tmp_path):
         load_and_qc_h5ad(
             in_h5ad=str(small_h5ad),
             out_dir=str(out_dir),
-            min_counts=1000,  # high enough to drop all cells in this tiny dataset
+            # high enough to drop all cells in this tiny dataset
+            min_counts=1000,
             min_genes=1000,
         )
